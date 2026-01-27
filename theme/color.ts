@@ -13,7 +13,7 @@ export const colors = {
   textPrimary: "#1F2937", // Text Chính
   textSecondary: "#6B7280", // Text Phụ
   border: "#D1D5DB", // Border
-  background: "#F4F7FA", // Background chính
+  background: "#E3F2FD", // Background chính
   white: "#FFFFFF",
 
   // KPI Specific (Dành cho Card Sensor/KPI)
