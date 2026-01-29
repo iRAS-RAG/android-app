@@ -12,6 +12,7 @@ export default function RootLayout() {
         <StatusBar style="dark" backgroundColor="transparent" />
 
         <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
           <Stack.Screen
             name="(auth)/forgotPassword"
