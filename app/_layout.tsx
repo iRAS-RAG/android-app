@@ -21,6 +21,7 @@ export default function RootLayout() {
           name="(auth)/resetPassword"
           options={{ headerShown: false }}
         />
+        <Stack.Screen name="(auth)/register" options={{ headerShown: false }} />
       </Stack>
     </SafeAreaProvider>
   );

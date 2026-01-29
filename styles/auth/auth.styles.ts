@@ -42,7 +42,7 @@ export const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.lg, // Tăng bo góc theo đề xuất
     paddingHorizontal: theme.spacing.md,
-    height: 56,
+    height: 50,
     marginBottom: theme.spacing.md,
   },
   inputWrapperFocused: {

@@ -133,7 +133,9 @@ export default function LoginScreen() {
           {/* Register Link */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Bạn chưa có tài khoản? </Text>
-            <TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push("/(auth)/register")} // Điều hướng sang trang Register
+            >
               <Text style={styles.registerText}>Đăng ký ngay</Text>
             </TouchableOpacity>
           </View>

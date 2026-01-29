@@ -126,7 +126,7 @@ export default function ForgotPasswordScreen({ navigation }: any) {
               console.log("Đang chuyển sang trang xác thực cho:", email);
             }}
           >
-            <Text style={styles.loginButtonText}>KIỂM TRA EMAIL</Text>
+            <Text style={styles.loginButtonText}>Kiểm tra email</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
