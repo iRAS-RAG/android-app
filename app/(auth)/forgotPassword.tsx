@@ -94,17 +94,30 @@ export default function ForgotPasswordScreen({ navigation }: any) {
 
           {/* Dòng cảnh báo hiển thị khi email không hợp lệ */}
           {!isValidEmail && (
-            <Text
+            <View
               style={{
-                color: theme.colors.danger,
-                ...theme.typography.caption,
+                flexDirection: "row",
+                alignItems: "center",
                 marginTop: -10,
                 marginBottom: 15,
                 marginLeft: 5,
+                gap: 4, // khoảng cách icon - text
               }}
             >
-              Email không hợp lệ. Vui lòng thử lại
-            </Text>
+              <Ionicons
+                name="alert-circle-outline"
+                size={14}
+                color={theme.colors.danger}
+              />
+              <Text
+                style={{
+                  color: theme.colors.danger,
+                  ...theme.typography.caption,
+                }}
+              >
+                Email không hợp lệ. Vui lòng thử lại
+              </Text>
+            </View>
           )}
 
           {/* Button Kiểm tra Email */}

@@ -1,3 +1,5 @@
+"use client";
+
 import { styles } from "@/styles/auth/auth.styles";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -12,7 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { theme } from "../../theme"; // Đảm bảo đường dẫn này chính xác
+import { theme } from "../../theme";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -20,8 +22,27 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [secureText, setSecureText] = useState(true);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
+  const [error, setError] = useState(""); // State lưu trữ thông báo lỗi
 
   const isButtonDisabled = email.length === 0 || password.length === 0;
+
+  // Xử lý logic đăng nhập
+  const handleLogin = () => {
+    // Tài khoản Demo để kiểm tra
+
+    const DEMO_EMAIL = "tech@fpt.edu.vn";
+    const DEMO_PASS = "123456";
+
+    if (email === DEMO_EMAIL && password === DEMO_PASS) {
+      setError("");
+      // Đăng nhập thành công -> Chuyển hướng vào Tabs chính
+      // Dùng replace để không quay lại màn hình Login bằng nút Back
+      router.replace("/(tabs)");
+    } else {
+      // Hiển thị lỗi màu đỏ dựa trên theme
+      setError("Email hoặc mật khẩu của bạn không chính xác.");
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -49,6 +70,7 @@ export default function LoginScreen() {
             style={[
               styles.inputWrapper,
               focusedInput === "email" && styles.inputWrapperFocused,
+              error !== "" && { borderColor: theme.colors.danger }, // Đổi viền đỏ nếu có lỗi
             ]}
           >
             <Ionicons
@@ -65,7 +87,10 @@ export default function LoginScreen() {
               placeholder="Tài khoản / Email"
               placeholderTextColor={theme.colors.textSecondary}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (error) setError(""); // Xóa lỗi khi bắt đầu nhập lại
+              }}
               autoCapitalize="none"
               onFocus={() => setFocusedInput("email")}
               onBlur={() => setFocusedInput(null)}
@@ -77,6 +102,7 @@ export default function LoginScreen() {
             style={[
               styles.inputWrapper,
               focusedInput === "password" && styles.inputWrapperFocused,
+              error !== "" && { borderColor: theme.colors.danger }, // Đổi viền đỏ nếu có lỗi
             ]}
           >
             <Ionicons
@@ -93,7 +119,10 @@ export default function LoginScreen() {
               placeholder="Mật khẩu"
               placeholderTextColor={theme.colors.textSecondary}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (error) setError(""); // Xóa lỗi khi bắt đầu nhập lại
+              }}
               secureTextEntry={secureText}
               onFocus={() => setFocusedInput("password")}
               onBlur={() => setFocusedInput(null)}
@@ -110,6 +139,35 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Hiển thị thông báo lỗi hệ thống */}
+          {error ? (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "flex-start",
+                marginTop: -5,
+                marginBottom: 10,
+                marginLeft: 5, // đẩy nhẹ sang trái cho đẹp
+              }}
+            >
+              <Ionicons
+                name="alert-circle-outline"
+                size={16}
+                color={theme.colors.danger}
+                style={{ marginRight: 6 }}
+              />
+              <Text
+                style={{
+                  color: theme.colors.danger,
+                  fontSize: 12,
+                }}
+              >
+                {error}
+              </Text>
+            </View>
+          ) : null}
+
           {/* Forgot Password Link */}
           <TouchableOpacity
             style={styles.forgotPassword}
@@ -125,6 +183,7 @@ export default function LoginScreen() {
               isButtonDisabled && styles.loginButtonDisabled,
             ]}
             disabled={isButtonDisabled}
+            onPress={handleLogin} // Gọi hàm kiểm tra đăng nhập
             activeOpacity={0.8}
           >
             <Text style={styles.loginButtonText}>Đăng nhập</Text>
@@ -133,9 +192,7 @@ export default function LoginScreen() {
           {/* Register Link */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Bạn chưa có tài khoản? </Text>
-            <TouchableOpacity
-              onPress={() => router.push("/(auth)/register")} // Điều hướng sang trang Register
-            >
+            <TouchableOpacity onPress={() => router.push("/(auth)/register")}>
               <Text style={styles.registerText}>Đăng ký ngay</Text>
             </TouchableOpacity>
           </View>

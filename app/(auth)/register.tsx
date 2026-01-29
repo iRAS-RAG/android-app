@@ -1,7 +1,7 @@
 "use client";
 
-import { styles } from "@/styles/auth/auth.styles";
-import { theme } from "@/theme";
+import { styles } from "@/styles/auth/auth.styles"; //
+import { theme } from "@/theme"; //
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -27,23 +27,35 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
   const [showPassword, setShowPassword] = useState(false);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
 
   // --- Logic Validation ---
-  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const isPasswordValid = password.length >= 8;
+  const validateEmail = (text: string) => {
+    const reg = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w\w+)+$/;
+    return reg.test(text);
+  };
+
+  const emailInvalid = email.length > 0 && !validateEmail(email);
+
+  const passwordRules = {
+    length: password.length >= 8,
+    lower: /[a-z]/.test(password),
+    upper: /[A-Z]/.test(password),
+    number: /[0-9]/.test(password),
+    special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+  };
+
+  const isPasswordValid = Object.values(passwordRules).every(Boolean);
   const isMatch = password === confirmPassword && password.length > 0;
 
   const isFormValid =
     fullName.trim().length > 0 &&
     username.trim().length > 0 &&
-    isValidEmail &&
+    validateEmail(email) &&
     isPasswordValid &&
     isMatch;
 
-  // Component nhãn có dấu *
   const RequiredLabel = ({ label }: { label: string }) => (
     <Text
       style={[
@@ -62,7 +74,6 @@ export default function RegisterScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.inner}
         >
-          {/* Nút quay lại */}
           <TouchableOpacity
             onPress={() => router.back()}
             style={{ marginBottom: 10 }}
@@ -81,7 +92,7 @@ export default function RegisterScreen() {
             <View style={styles.header}>
               <Image
                 source={require("../../assets/images/logo1.png")}
-                style={styles.logo}
+                style={[styles.logo]}
                 resizeMode="contain"
               />
               <Text style={styles.title}>Đăng ký tài khoản</Text>
@@ -105,7 +116,7 @@ export default function RegisterScreen() {
                   color={theme.colors.textSecondary}
                 />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.colors.textPrimary }]} // Đồng bộ màu chữ
                   placeholder="Nhập họ và tên"
                   placeholderTextColor={theme.colors.textSecondary}
                   value={fullName}
@@ -115,7 +126,7 @@ export default function RegisterScreen() {
                 />
               </View>
 
-              {/* Username */}
+              {/* Tên đăng nhập */}
               <RequiredLabel label="Tên đăng nhập" />
               <View
                 style={[
@@ -129,7 +140,7 @@ export default function RegisterScreen() {
                   color={theme.colors.textSecondary}
                 />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.colors.textPrimary }]} // Đồng bộ màu chữ
                   placeholder="Ví dụ: kythuatvien01"
                   placeholderTextColor={theme.colors.textSecondary}
                   value={username}
@@ -146,16 +157,21 @@ export default function RegisterScreen() {
                 style={[
                   styles.inputWrapper,
                   focusedInput === "email" && styles.inputWrapperFocused,
+                  emailInvalid && { borderColor: theme.colors.danger },
                 ]}
               >
                 <Ionicons
                   name="mail-outline"
                   size={20}
-                  color={theme.colors.textSecondary}
+                  color={
+                    emailInvalid
+                      ? theme.colors.danger
+                      : theme.colors.textSecondary
+                  }
                 />
                 <TextInput
-                  style={styles.input}
-                  placeholder="email@example.com"
+                  style={[styles.input, { color: theme.colors.textPrimary }]} // Đồng bộ màu chữ
+                  placeholder="email@gmail.com"
                   placeholderTextColor={theme.colors.textSecondary}
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -165,6 +181,32 @@ export default function RegisterScreen() {
                   onBlur={() => setFocusedInput(null)}
                 />
               </View>
+              {emailInvalid && (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginTop: -10,
+                    marginBottom: 10,
+                    marginLeft: 5,
+                  }}
+                >
+                  <Ionicons
+                    name="alert-circle-outline"
+                    size={14}
+                    color={theme.colors.danger}
+                  />
+                  <Text
+                    style={{
+                      color: theme.colors.danger,
+                      ...theme.typography.caption,
+                      marginLeft: 6,
+                    }}
+                  >
+                    Email không đúng định dạng
+                  </Text>
+                </View>
+              )}
 
               {/* Mật khẩu */}
               <RequiredLabel label="Mật khẩu" />
@@ -180,8 +222,8 @@ export default function RegisterScreen() {
                   color={theme.colors.textSecondary}
                 />
                 <TextInput
-                  style={styles.input}
-                  placeholder="Tối thiểu 8 ký tự"
+                  style={[styles.input, { color: theme.colors.textPrimary }]} // Đồng bộ màu chữ
+                  placeholder="Nhập mật khẩu"
                   placeholderTextColor={theme.colors.textSecondary}
                   secureTextEntry={!showPassword}
                   value={password}
@@ -200,6 +242,24 @@ export default function RegisterScreen() {
                 </TouchableOpacity>
               </View>
 
+              {/* Password Rules */}
+              {password.length > 0 && (
+                <View style={{ marginBottom: 10, paddingLeft: 5 }}>
+                  <RuleItem
+                    label="Ít nhất 8 ký tự"
+                    valid={passwordRules.length}
+                  />
+                  <RuleItem
+                    label="Chữ hoa và chữ thường"
+                    valid={passwordRules.upper && passwordRules.lower}
+                  />
+                  <RuleItem
+                    label="Số và ký tự đặc biệt"
+                    valid={passwordRules.number && passwordRules.special}
+                  />
+                </View>
+              )}
+
               {/* Xác nhận mật khẩu */}
               <RequiredLabel label="Xác nhận mật khẩu" />
               <View
@@ -216,18 +276,45 @@ export default function RegisterScreen() {
                   color={theme.colors.textSecondary}
                 />
                 <TextInput
-                  style={styles.input}
-                  placeholder="Nhập lại mật khẩu phía trên"
+                  style={[styles.input, { color: theme.colors.textPrimary }]}
+                  placeholder="Nhập lại mật khẩu"
                   placeholderTextColor={theme.colors.textSecondary}
                   secureTextEntry={!showPassword}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   onFocus={() => setFocusedInput("confirm")}
                   onBlur={() => setFocusedInput(null)}
+                  // --- NGĂN CHẶN COPY/PASTE TẠI ĐÂY ---
+                  contextMenuHidden={true} // Ẩn menu chọn (Copy/Paste/Cut) trên cả iOS và Android
                 />
               </View>
+              {confirmPassword.length > 0 && !isMatch && (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginTop: -10,
+                    marginBottom: 10,
+                    marginLeft: 5,
+                  }}
+                >
+                  <Ionicons
+                    name="alert-circle-outline"
+                    size={14}
+                    color={theme.colors.danger}
+                  />
+                  <Text
+                    style={{
+                      color: theme.colors.danger,
+                      ...theme.typography.caption,
+                      marginLeft: 6,
+                    }}
+                  >
+                    Mật khẩu xác nhận không khớp
+                  </Text>
+                </View>
+              )}
 
-              {/* Nút đăng ký */}
               <TouchableOpacity
                 style={[
                   styles.loginButton,
@@ -235,12 +322,16 @@ export default function RegisterScreen() {
                   { marginTop: 10 },
                 ]}
                 disabled={!isFormValid}
-                onPress={() => router.push("/(auth)/verifyOTP")}
+                onPress={() => {
+                  // Truyền đủ params để VerifyOTP nhận diện đúng luồng đăng ký
+                  router.push({
+                    pathname: "/(auth)/verifyOTP",
+                    params: { email: email, mode: "register" },
+                  });
+                }}
               >
                 <Text style={styles.loginButtonText}>Đăng ký tài khoản</Text>
               </TouchableOpacity>
-
-              {/* Footer */}
               <View style={styles.footer}>
                 <Text style={styles.footerText}>Bạn đã có tài khoản? </Text>
                 <TouchableOpacity onPress={() => router.push("/(auth)/login")}>
@@ -252,5 +343,28 @@ export default function RegisterScreen() {
         </KeyboardAvoidingView>
       </SafeAreaView>
     </LinearGradient>
+  );
+}
+
+function RuleItem({ label, valid }: { label: string; valid: boolean }) {
+  return (
+    <View
+      style={{ flexDirection: "row", alignItems: "center", marginBottom: 2 }}
+    >
+      <Ionicons
+        name={valid ? "checkmark-circle" : "ellipse-outline"}
+        size={14}
+        color={valid ? theme.colors.success : theme.colors.textSecondary}
+      />
+      <Text
+        style={{
+          ...theme.typography.caption,
+          marginLeft: 8,
+          color: valid ? theme.colors.success : theme.colors.textSecondary,
+        }}
+      >
+        {label}
+      </Text>
+    </View>
   );
 }

@@ -5,6 +5,7 @@ import { theme } from "@/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
+import { Alert } from "react-native";
 import {
   Image,
   KeyboardAvoidingView,
@@ -57,35 +58,38 @@ export default function VerifyOTP() {
     }
   };
 
+  // Trong verifyOTP.tsx
   const handleVerify = () => {
     const enteredOtp = otp.join("");
-
-    if (enteredOtp.length !== 6) {
-      setError("Vui lòng nhập đủ 6 số.");
-      return;
-    }
-
     const DEMO_OTP = "123456";
 
     if (enteredOtp === DEMO_OTP) {
       setError("");
-      console.log("Xác thực OTP thành công!");
 
-      // SỬA LỖI ROUTE TẠI ĐÂY:
-      // Cách 1: Sử dụng đường dẫn trực tiếp (khuyên dùng nếu file là app/(auth)/resetPassword.tsx)
-      router.push({
-        pathname: "/resetPassword",
-        params: { email: email },
-      });
-
-      /* Cách 2: Nếu cách trên vẫn lỗi, hãy thử dùng đường dẫn tuyệt đối đầy đủ:
-      router.push(`/(auth)/resetPassword?email=${email}`);
-      */
+      if (mode === "register") {
+        // HIỂN THỊ POP-UP ĐĂNG KÝ THÀNH CÔNG
+        Alert.alert(
+          "Đăng ký thành công",
+          "Tài khoản kỹ thuật viên của bạn đã được kích hoạt. Chào mừng bạn đến với hệ thống iRAS-RAG.",
+          [
+            {
+              text: "Vào trang chủ",
+              onPress: () => router.replace("/(tabs)"), // Dùng replace để không quay lại trang OTP
+            },
+          ],
+        );
+      } else {
+        // Luồng quên mật khẩu giữ nguyên
+        router.push({
+          pathname: "/resetPassword",
+          params: { email: email },
+        });
+      }
     } else {
-      setError("Mã OTP không hợp lệ. Vui lòng thử lại.");
+      // Hiển thị lỗi màu danger nếu sai mã
+      setError("Mã OTP không hợp lệ, vui lòng thử lại");
     }
   };
-
   const handleResendOTP = () => {
     setTimeLeft(60);
     setOtp(Array(6).fill(""));
@@ -116,19 +120,16 @@ export default function VerifyOTP() {
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Header Section kế thừa từ style chung */}
           <View style={styles.header}>
-            <Image
-              source={require("@/assets/images/logo1.png")}
-              style={[styles.logo]} // Điều chỉnh size logo nhỏ lại cho OTP
-              resizeMode="contain"
-            />
-            <Text style={styles.title}>Xác thực OTP</Text>
+            {/* ... Image giữ nguyên ... */}
+            <Text style={styles.title}>
+              {mode === "register"
+                ? "Kích hoạt tài khoản"
+                : "Xác nhận danh tính"}
+            </Text>
             <Text style={[styles.subTitleDescription, { textAlign: "center" }]}>
-              Mã xác thực đã được gửi đến:{"\n"}
-              <Text
-                style={{ fontWeight: "700", color: theme.colors.textPrimary }}
-              >
-                {email}
-              </Text>
+              {mode === "register"
+                ? "Nhập mã để hoàn tất đăng ký kỹ thuật viên RAS."
+                : "Nhập mã để xác nhận yêu cầu đặt lại mật khẩu."}
             </Text>
           </View>
 
@@ -185,7 +186,7 @@ export default function VerifyOTP() {
             disabled={isButtonDisabled}
             onPress={handleVerify}
           >
-            <Text style={styles.loginButtonText}>XÁC NHẬN</Text>
+            <Text style={styles.loginButtonText}>Xác nhận</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

@@ -3,6 +3,9 @@ export const colors = {
   // Brand Colors
   primary: "#2A85FF", // AI Blue
   secondary: "#27C4A8", // Aqua/Nước
+  gradient: {
+    screen: ["#E3F2FD", "#F4F7FA"],
+  },
 
   // Feedback Colors
   success: "#32D583", // Trạng thái tốt

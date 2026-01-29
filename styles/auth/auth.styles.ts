@@ -18,8 +18,8 @@ export const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   logo: {
-    width: 200,
-    height: 200,
+    width: 150,
+    height: 150,
     marginBottom: theme.spacing.xs, // giảm khoảng cách logo → text
   },
   title: {

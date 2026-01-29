@@ -1,11 +1,12 @@
 "use client";
 
-import { styles } from "@/styles/auth/auth.styles"; // Sử dụng đúng đường dẫn style của bạn
-import { theme } from "@/theme";
+import { styles } from "@/styles/auth/auth.styles"; //
+import { theme } from "@/theme"; //
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
+  Alert, // Thêm Alert để hiển thị thông báo thành công
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -37,9 +38,20 @@ export default function ResetPassword() {
   const isValidPassword = Object.values(validations).every(Boolean);
   const isMatch = password === confirmPassword && password.length > 0;
 
+  // Xử lý xác nhận đổi mật khẩu thành công
   const handleConfirm = () => {
     if (!(isValidPassword && isMatch)) return;
-    router.push("/(auth)/login");
+
+    Alert.alert(
+      "Thành công",
+      "Mật khẩu của bạn đã được thay đổi. Vui lòng đăng nhập lại bằng mật khẩu mới.",
+      [
+        {
+          text: "Đăng nhập",
+          onPress: () => router.push("/(auth)/login"),
+        },
+      ],
+    );
   };
 
   return (
@@ -48,7 +60,6 @@ export default function ResetPassword() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.inner}
       >
-        {/* Nút quay lại */}
         <TouchableOpacity
           onPress={() => router.back()}
           style={{ marginBottom: 20 }}
@@ -61,11 +72,10 @@ export default function ResetPassword() {
         </TouchableOpacity>
 
         <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Header Section */}
           <View style={styles.header}>
             <Image
               source={require("@/assets/images/logo1.png")}
-              style={[styles.logo]}
+              style={[styles.logo, { width: 140, height: 140 }]}
               resizeMode="contain"
             />
             <Text style={styles.title}>Tạo mật khẩu mới</Text>
@@ -75,7 +85,7 @@ export default function ResetPassword() {
           </View>
 
           <View style={styles.form}>
-            {/* Trường nhập Mật khẩu mới */}
+            {/* Mật khẩu mới */}
             <View
               style={[
                 styles.inputWrapper,
@@ -88,7 +98,7 @@ export default function ResetPassword() {
                 color={theme.colors.textSecondary}
               />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.colors.textPrimary }]}
                 placeholder="Mật khẩu mới"
                 placeholderTextColor={theme.colors.textSecondary}
                 secureTextEntry={!showPassword}
@@ -121,11 +131,13 @@ export default function ResetPassword() {
               </View>
             )}
 
-            {/* Trường xác nhận mật khẩu */}
+            {/* Xác nhận mật khẩu */}
             <View
               style={[
                 styles.inputWrapper,
                 focusedInput === "confirm" && styles.inputWrapperFocused,
+                confirmPassword.length > 0 &&
+                  !isMatch && { borderColor: theme.colors.danger },
               ]}
             >
               <Ionicons
@@ -134,7 +146,7 @@ export default function ResetPassword() {
                 color={theme.colors.textSecondary}
               />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.colors.textPrimary }]}
                 placeholder="Xác nhận mật khẩu"
                 placeholderTextColor={theme.colors.textSecondary}
                 secureTextEntry={!showConfirmPassword}
@@ -142,6 +154,7 @@ export default function ResetPassword() {
                 onChangeText={setConfirmPassword}
                 onFocus={() => setFocusedInput("confirm")}
                 onBlur={() => setFocusedInput(null)}
+                contextMenuHidden={true}
               />
               <TouchableOpacity
                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -154,21 +167,34 @@ export default function ResetPassword() {
               </TouchableOpacity>
             </View>
 
-            {/* Báo lỗi không khớp */}
+            {/* Thông báo lỗi không khớp kèm ICON cảnh báo */}
             {confirmPassword.length > 0 && !isMatch && (
-              <Text
+              <View
                 style={{
-                  color: theme.colors.danger,
-                  ...theme.typography.caption,
-                  marginBottom: theme.spacing.md,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginTop: -10,
+                  marginBottom: 15,
                   marginLeft: 5,
+                  gap: 4,
                 }}
               >
-                Mật khẩu xác nhận không khớp.
-              </Text>
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={14}
+                  color={theme.colors.danger}
+                />
+                <Text
+                  style={{
+                    color: theme.colors.danger,
+                    ...theme.typography.caption,
+                  }}
+                >
+                  Mật khẩu xác nhận không khớp.
+                </Text>
+              </View>
             )}
 
-            {/* Nút xác nhận */}
             <TouchableOpacity
               style={[
                 styles.loginButton,
@@ -177,7 +203,7 @@ export default function ResetPassword() {
               disabled={!(isValidPassword && isMatch)}
               onPress={handleConfirm}
             >
-              <Text style={styles.loginButtonText}>CẬP NHẬT MẬT KHẨU</Text>
+              <Text style={styles.loginButtonText}>Cập nhật mật khẩu</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -186,7 +212,6 @@ export default function ResetPassword() {
   );
 }
 
-// Component phụ hiển thị quy tắc
 function RuleItem({ label, valid }: { label: string; valid: boolean }) {
   return (
     <View
