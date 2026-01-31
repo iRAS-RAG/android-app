@@ -1,11 +1,14 @@
-import { StyleSheet, Dimensions } from "react-native";
 import { theme } from "@/theme";
+import { Dimensions, Platform, StyleSheet } from "react-native";
 
 const { width } = Dimensions.get("window");
 
 export const styles = StyleSheet.create({
   headerSection: {
-    padding: 20,
+    paddingHorizontal: 20,
+    // Giảm padding để đẩy chữ và icon lên sát mép trên
+    paddingTop: Platform.OS === "ios" ? 10 : 20,
+    paddingBottom: 15,
     backgroundColor: "#FFF",
   },
   headerInfo: {
@@ -13,7 +16,7 @@ export const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  farmName: { ...theme.typography.h2, color: theme.colors.textPrimary },
+  farmName: { ...theme.typography.h3, color: theme.colors.textPrimary },
   techName: { ...theme.typography.body2, color: theme.colors.textSecondary },
   notiBtn: { padding: 5 },
   notiBadge: {
@@ -44,17 +47,36 @@ export const styles = StyleSheet.create({
   sensorContainer: { padding: 20 },
   sectionTitle: { ...theme.typography.h3, marginBottom: 15 },
   sensorCard: {
-    width: width * 0.28,
+    width: width * 0.4, // Tăng độ rộng lên khoảng 40% màn hình để giống trang chi tiết
     marginRight: 15,
     padding: 15,
     backgroundColor: "#FFF",
-    borderRadius: theme.borderRadius.lg,
-    borderWidth: 1,
-    alignItems: "center",
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
   },
-  sensorLabel: { ...theme.typography.caption, marginTop: 8 },
-  sensorValue: { ...theme.typography.h2, marginVertical: 4 },
-  sensorUnit: { fontSize: 10, color: theme.colors.textSecondary },
+  sensorLabel: {
+    ...theme.typography.caption,
+    marginTop: 8,
+    color: theme.colors.textSecondary,
+  },
+  sensorValue: {
+    fontSize: 20, // Kích thước chữ giống trang chi tiết
+    fontWeight: "700",
+    marginVertical: 2,
+  },
+  sensorUnit: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+  },
+  sensorTime: {
+    fontSize: 10,
+    color: theme.colors.textSecondary,
+    marginTop: 4,
+  },
 
   tankCard: {
     backgroundColor: "#FFF",

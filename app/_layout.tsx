@@ -1,8 +1,7 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
-import { theme } from "@/theme";
 
 export default function RootLayout() {
   return (
@@ -28,6 +27,10 @@ export default function RootLayout() {
           />
           <Stack.Screen
             name="(auth)/register"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="tankDetail/[id]"
             options={{ headerShown: false }}
           />
         </Stack>

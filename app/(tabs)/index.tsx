@@ -1,16 +1,15 @@
+import { styles } from "@/styles/dashboard/dashboard.styles";
+import { theme } from "@/theme";
+import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
+  SafeAreaView,
   ScrollView,
-  View,
   Text,
   TouchableOpacity,
-  SafeAreaView,
-  FlatList,
-  Dimensions,
+  View,
 } from "react-native";
-import { theme } from "@/theme";
-import { styles } from "@/styles/dashboard/dashboard.styles";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
 // Giả lập dữ liệu bể nuôi theo hình ảnh thiết kế
 const TANKS_DATA = [
@@ -54,26 +53,30 @@ const SENSOR_DATA = [
     label: "Nhiệt độ",
     value: "28.5",
     unit: "°C",
-    icon: "thermometer-outline",
+    time: "2 phút trước", // Thêm thời gian
+    icon: "thermometer", // Đổi sang Feather icon
     color: theme.colors.danger,
   },
   {
     label: "pH",
     value: "7.2",
     unit: "pH",
-    icon: "water-outline",
+    time: "1 phút trước",
+    icon: "droplet",
     color: theme.colors.primary,
   },
   {
     label: "Oxy hòa tan",
     value: "6.8",
     unit: "mg/L",
-    icon: "airbox-outline",
+    time: "5 phút trước",
+    icon: "wind",
     color: theme.colors.success,
   },
 ];
 
 export default function DashboardScreen() {
+  const router = useRouter();
   const [activeSensor, setActiveSensor] = useState(0);
 
   return (
@@ -82,13 +85,22 @@ export default function DashboardScreen() {
         {/* PHẦN 1: HEADER & THỐNG KÊ NHANH */}
         <View style={styles.headerSection}>
           <View style={styles.headerInfo}>
-            <TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                /* Logic mở Drawer */
+              }}
+            >
               <Ionicons name="menu" size={28} color="#334155" />
             </TouchableOpacity>
+
             <View style={{ flex: 1, marginLeft: 15 }}>
-              <Text style={styles.farmName}>Trang trại Hải Phòng</Text>
+              {/* Tên trang trại và kĩ thuật viên sẽ được đẩy sát lên trên */}
+              <Text style={[styles.farmName, { lineHeight: 24 }]}>
+                Trang trại Hải Phòng
+              </Text>
               <Text style={styles.techName}>Kỹ thuật viên: Nguyễn Văn A</Text>
             </View>
+
             <TouchableOpacity style={styles.notiBtn}>
               <Ionicons
                 name="notifications-outline"
@@ -131,18 +143,20 @@ export default function DashboardScreen() {
             {SENSOR_DATA.map((item, index) => (
               <View
                 key={index}
-                style={[styles.sensorCard, { borderColor: item.color }]}
+                style={[
+                  styles.sensorCard,
+                  { borderLeftColor: item.color, borderLeftWidth: 4 }, // Border trái giống trang chi tiết
+                ]}
               >
-                <Ionicons
-                  name={item.icon as any}
-                  size={24}
-                  color={item.color}
-                />
+                <Feather name={item.icon as any} size={20} color={item.color} />
                 <Text style={styles.sensorLabel}>{item.label}</Text>
-                <Text style={[styles.sensorValue, { color: item.color }]}>
-                  {item.value}
-                </Text>
-                <Text style={styles.sensorUnit}>{item.unit}</Text>
+                <View style={{ flexDirection: "row", alignItems: "baseline" }}>
+                  <Text style={[styles.sensorValue, { color: item.color }]}>
+                    {item.value}
+                  </Text>
+                  <Text style={styles.sensorUnit}> {item.unit}</Text>
+                </View>
+                <Text style={styles.sensorTime}>{item.time}</Text>
               </View>
             ))}
           </ScrollView>
@@ -216,7 +230,13 @@ export default function DashboardScreen() {
                 />
               </View>
 
-              <TouchableOpacity style={styles.detailBtn}>
+              <TouchableOpacity
+                style={styles.detailBtn}
+                onPress={() => {
+                  // Điều hướng đến trang chi tiết với ID tương ứng
+                  router.push(`/tankDetail/${tank.id}`);
+                }}
+              >
                 <Text style={styles.detailBtnText}>Xem chi tiết</Text>
                 <Ionicons
                   name="chevron-forward"
