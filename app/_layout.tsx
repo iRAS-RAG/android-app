@@ -33,6 +33,10 @@ export default function RootLayout() {
             name="tankDetail/[id]"
             options={{ headerShown: false }}
           />
+          <Stack.Screen
+            name="alertDetail/[id]"
+            options={{ headerShown: false }}
+          />
         </Stack>
       </LinearGradient>
     </SafeAreaProvider>
