@@ -1,9 +1,10 @@
 import { styles } from "@/styles/alerts/alerts.styles";
 import { theme } from "@/theme";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { router, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
+  Alert,
   SafeAreaView,
   ScrollView,
   Text,
@@ -74,7 +75,6 @@ export default function AlertsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
-      {/* HEADER: BỘ LỌC & TÌM KIẾM */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View>
@@ -142,21 +142,19 @@ export default function AlertsScreen() {
         </ScrollView>
       </View>
 
-      {/* DANH SÁCH CẢNH BÁO CHI TIẾT */}
       <ScrollView
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
       >
         {ALERTS_DATA.map((item) => (
-          <AlertCard key={item.id} item={item} />
+          <AlertCard key={item.id} item={item} router={router} />
         ))}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// Component Thẻ Cảnh báo
-const AlertCard = ({ item }: any) => (
+const AlertCard = ({ item, router }: any) => (
   <View
     style={[styles.card, { borderTopColor: item.color, borderTopWidth: 4 }]}
   >
@@ -215,25 +213,14 @@ const AlertCard = ({ item }: any) => (
 
     <Text style={styles.timeText}>{item.time}</Text>
 
-    {item.level === "Nguy hiểm" ? (
-      <View style={styles.actionRow}>
-        <TouchableOpacity style={styles.btnOutline}>
-          <Text style={styles.btnTextOutline}>Xác nhận</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.btnPrimary}
-          onPress={() => {
-            router.push({
-              pathname: "/alertDetail/[id]", // Tên file vật lý của bạn
-              params: { id: item.id }, // Truyền tham số id động vào đây
-            });
-          }}
-        >
-          <Text style={styles.btnTextPrimary}>Xem chi tiết</Text>
-        </TouchableOpacity>
-      </View>
-    ) : item.level === "An toàn" ? (
-      <TouchableOpacity style={styles.btnResolved}>
+    {/* Logic hiển thị nút bấm theo mức độ */}
+    {item.level === "An toàn" ? (
+      <TouchableOpacity
+        style={styles.btnResolved}
+        onPress={() =>
+          Alert.alert("Thành công", "Đã đánh dấu giải quyết sự cố.")
+        }
+      >
         <Ionicons
           name="checkmark-circle"
           size={18}
@@ -242,7 +229,29 @@ const AlertCard = ({ item }: any) => (
         />
         <Text style={styles.btnTextPrimary}>Đánh dấu đã giải quyết</Text>
       </TouchableOpacity>
-    ) : null}
+    ) : (
+      <View style={styles.actionRow}>
+        <TouchableOpacity
+          style={styles.btnOutline}
+          onPress={() =>
+            Alert.alert("Xác nhận", "Đã chuyển trạng thái sang Đang xử lý.")
+          }
+        >
+          <Text style={styles.btnTextOutline}>Xác nhận</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.btnPrimary}
+          onPress={() =>
+            router.push({
+              pathname: "/alertDetail/[id]",
+              params: { id: item.id },
+            })
+          }
+        >
+          <Text style={styles.btnTextPrimary}>Xem chi tiết</Text>
+        </TouchableOpacity>
+      </View>
+    )}
   </View>
 );
 

@@ -4,6 +4,8 @@ import { styles } from "@/styles/auth/auth.styles";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
+import authService from "../../services/authService";
+import { useAuth } from "../../hooks/useAuth";
 import {
   Image,
   KeyboardAvoidingView,
@@ -18,32 +20,66 @@ import { theme } from "../../theme";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [secureText, setSecureText] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
   const [error, setError] = useState(""); // State lưu trữ thông báo lỗi
 
   const isButtonDisabled = email.length === 0 || password.length === 0;
 
   // Xử lý logic đăng nhập
-  const handleLogin = () => {
-    // Tài khoản Demo để kiểm tra
+  // Xử lý logic đăng nhập
+  const handleLogin = async () => {
+    setIsLoading(true);
+    setError("");
 
-    const DEMO_EMAIL = "tech@fpt.edu.vn";
-    const DEMO_PASS = "123456";
+    try {
+      // 1. Gọi service đăng nhập thực tế
+      const result = await authService.login(email, password);
 
-    if (email === DEMO_EMAIL && password === DEMO_PASS) {
-      setError("");
-      // Đăng nhập thành công -> Chuyển hướng vào Tabs chính
-      // Dùng replace để không quay lại màn hình Login bằng nút Back
-      router.replace("/(tabs)");
-    } else {
-      // Hiển thị lỗi màu đỏ dựa trên theme
-      setError("Email hoặc mật khẩu của bạn không chính xác.");
+      console.log("Login Success result:", result); // Log khi thành công
+
+      if (result && result.token) {
+        // 2. Cập nhật trạng thái đăng nhập vào AuthContext
+        await signIn({
+          accessToken: result.token.accessToken,
+          refreshToken: result.token.refreshToken,
+        });
+
+        // 3. Điều hướng dựa trên logic (Tabs chính)
+        router.replace("/(tabs)");
+      }
+    } catch (err: any) {
+      // --- PHẦN LOG LỖI CHI TIẾT ---
+      console.log("========= LOGIN ERROR LOG =========");
+      if (err.response) {
+        // Lỗi trả về từ Server (C#) ví dụ: 400, 401, 500
+        console.log("Data:", err.response.data);
+        console.log("Status:", err.response.status);
+        console.log("Headers:", err.response.headers);
+        setError(
+          `Server error: ${err.response.status} - ${err.response.data?.message || "Lỗi hệ thống"}`,
+        );
+      } else if (err.request) {
+        // Lỗi không kết nối được tới Server (Sai IP, sai mạng, Firewall chặn)
+        console.log("Request info:", err.request);
+        setError(
+          "Không thể kết nối tới máy chủ. Vui lòng kiểm tra Wi-Fi hoặc IP của Backend.",
+        );
+      } else {
+        // Các lỗi thiết lập khác
+        console.log("Error Message:", err.message);
+        setError(err.message);
+      }
+      console.log("Config:", err.config);
+      console.log("====================================");
+    } finally {
+      setIsLoading(false);
     }
   };
-
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -180,22 +216,24 @@ export default function LoginScreen() {
           <TouchableOpacity
             style={[
               styles.loginButton,
-              isButtonDisabled && styles.loginButtonDisabled,
+              (email === "" || password === "" || isLoading) &&
+                styles.loginButtonDisabled,
             ]}
-            disabled={isButtonDisabled}
-            onPress={handleLogin} // Gọi hàm kiểm tra đăng nhập
-            activeOpacity={0.8}
+            onPress={handleLogin}
+            disabled={isLoading || email === "" || password === ""}
           >
-            <Text style={styles.loginButtonText}>Đăng nhập</Text>
+            <Text style={styles.loginButtonText}>
+              {isLoading ? "Đang xử lý..." : "Đăng nhập"}
+            </Text>
           </TouchableOpacity>
 
           {/* Register Link */}
-          <View style={styles.footer}>
+          {/* <View style={styles.footer}>
             <Text style={styles.footerText}>Bạn chưa có tài khoản? </Text>
             <TouchableOpacity onPress={() => router.push("/(auth)/register")}>
               <Text style={styles.registerText}>Đăng ký ngay</Text>
             </TouchableOpacity>
-          </View>
+          </View> */}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

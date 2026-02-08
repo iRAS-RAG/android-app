@@ -2,7 +2,7 @@ import { styles } from "@/styles/alerts/alertDetail.styles";
 import { theme } from "@/theme";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import {
   Dimensions,
   SafeAreaView,
@@ -19,7 +19,19 @@ const screenWidth = Dimensions.get("window").width;
 export default function AlertDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const [currentStatus, setCurrentStatus] = useState("Đang xảy ra");
 
+  const handleProcessAlert = () => {
+    if (currentStatus === "Đang xảy ra") {
+      // Bước 1: Đổi trạng thái sang "Đang xử lý"
+      setCurrentStatus("Đang xử lý");
+      // Bước 2: Chuyển hướng qua trang nhật ký
+      router.push({
+        pathname: "/maintenance/log",
+        params: { id: id, type: "NH3" },
+      });
+    }
+  };
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
       {/* HEADER ĐIỀU HƯỚNG */}
@@ -189,6 +201,27 @@ export default function AlertDetailScreen() {
           </TouchableOpacity>
           <TouchableOpacity style={styles.btnSuccess}>
             <Text style={styles.btnWhiteText}>Đánh dấu đã xử lý</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              currentStatus === "Đang xử lý"
+                ? styles.btnSecondary
+                : styles.btnSuccess,
+              { marginTop: 10 },
+            ]}
+            onPress={handleProcessAlert}
+          >
+            <Text
+              style={
+                currentStatus === "Đang xử lý"
+                  ? styles.btnSecondaryText
+                  : styles.btnWhiteText
+              }
+            >
+              {currentStatus === "Đang xử lý"
+                ? "Tiếp tục cập nhật nhật ký"
+                : "Bắt đầu xử lý & Đóng sự cố"}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
