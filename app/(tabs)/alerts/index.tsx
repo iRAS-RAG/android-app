@@ -4,17 +4,17 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   SafeAreaView,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  Alert,
 } from "react-native";
 
-// Dữ liệu giả lập cảnh báo
-const ALERTS_DATA = [
+// Dữ liệu giả lập ban đầu
+const INITIAL_ALERTS_DATA = [
   {
     id: "1",
     type: "NH3",
@@ -49,7 +49,7 @@ const ALERTS_DATA = [
     value: "4.2 mg/L",
     limit: "5.0 mg/L",
     level: "Cảnh báo",
-    status: "Đã xác nhận",
+    status: "Đang xảy ra",
     tank: "Bể B-03",
     time: "15 phút trước",
     color: theme.colors.warning,
@@ -72,9 +72,39 @@ const ALERTS_DATA = [
 export default function AlertsScreen() {
   const router = useRouter();
   const [filter, setFilter] = useState("Tất cả");
+  // Quản lý danh sách cảnh báo bằng State để cập nhật trạng thái động
+  const [alerts, setAlerts] = useState(INITIAL_ALERTS_DATA);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Xử lý khi nhấn nút Xác nhận
+  const handleConfirm = (id: string) => {
+    setAlerts((prevAlerts) =>
+      prevAlerts.map((alert) =>
+        alert.id === id ? { ...alert, status: "Đang xử lý" } : alert,
+      ),
+    );
+    Alert.alert("Thông báo", "Đã xác nhận sự cố. Trạng thái: Đang xử lý.");
+  };
+  // 2. Logic Lọc dữ liệu kết hợp cả Tìm kiếm và Tab bộ lọc
+  const filteredAlerts = alerts.filter((item) => {
+    // Lọc theo từ khóa tìm kiếm (Tên sự cố hoặc Mã bể)
+    const matchesSearch =
+      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.tank.toLowerCase().includes(searchQuery.toLowerCase());
+
+    // Lọc theo Tab (Nguy hiểm, Cảnh báo, Đang xử lý)
+    const matchesTab =
+      filter === "Tất cả" ||
+      (filter === "Nguy hiểm" && item.level === "Nguy hiểm") ||
+      (filter === "Cảnh báo" && item.level === "Cảnh báo") ||
+      (filter === "Đang xử lý" && item.status === "Đang xử lý");
+
+    return matchesSearch && matchesTab;
+  });
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
+      {/* HEADER: BỘ LỌC & TÌM KIẾM */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View>
@@ -99,6 +129,9 @@ export default function AlertsScreen() {
           <TextInput
             placeholder="Tìm kiếm cảnh báo, bể..."
             style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={(text) => setSearchQuery(text)} // Cập nhật state khi nhập chữ
+            clearButtonMode="while-editing" // Hiện nút X xóa nhanh trên iOS
           />
         </View>
 
@@ -142,19 +175,35 @@ export default function AlertsScreen() {
         </ScrollView>
       </View>
 
+      {/* 4. Hiển thị danh sách đã được lọc */}
       <ScrollView
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
       >
-        {ALERTS_DATA.map((item) => (
-          <AlertCard key={item.id} item={item} router={router} />
-        ))}
+        {filteredAlerts.length > 0 ? (
+          filteredAlerts.map((item) => (
+            <AlertCard
+              key={item.id}
+              item={item}
+              router={router}
+              onConfirm={() => handleConfirm(item.id)}
+            />
+          ))
+        ) : (
+          <View style={{ alignItems: "center", marginTop: 50 }}>
+            <Ionicons name="search-outline" size={60} color="#CBD5E1" />
+            <Text style={{ color: "#64748B", marginTop: 10 }}>
+              Không tìm thấy cảnh báo phù hợp
+            </Text>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const AlertCard = ({ item, router }: any) => (
+// Component Thẻ Cảnh báo
+const AlertCard = ({ item, router, onConfirm }: any) => (
   <View
     style={[styles.card, { borderTopColor: item.color, borderTopWidth: 4 }]}
   >
@@ -193,9 +242,31 @@ const AlertCard = ({ item, router }: any) => (
           {item.level}
         </Text>
       </View>
-      <View style={[styles.tag, { backgroundColor: "#F1F5F9" }]}>
-        <Ionicons name="time-outline" size={12} color="#64748B" />
-        <Text style={styles.tagTextSecondary}>{item.status}</Text>
+      {/* Hiển thị màu sắc trạng thái dựa trên tiến độ xử lý */}
+      <View
+        style={[
+          styles.tag,
+          {
+            backgroundColor:
+              item.status === "Đang xử lý" ? "#DBEAFE" : "#F1F5F9",
+          },
+        ]}
+      >
+        <Ionicons
+          name="time-outline"
+          size={12}
+          color={
+            item.status === "Đang xử lý" ? theme.colors.primary : "#64748B"
+          }
+        />
+        <Text
+          style={[
+            styles.tagTextSecondary,
+            item.status === "Đang xử lý" && { color: theme.colors.primary },
+          ]}
+        >
+          {item.status}
+        </Text>
       </View>
       <View style={[styles.tag, { backgroundColor: "#E0F2FE" }]}>
         <Ionicons
@@ -213,13 +284,10 @@ const AlertCard = ({ item, router }: any) => (
 
     <Text style={styles.timeText}>{item.time}</Text>
 
-    {/* Logic hiển thị nút bấm theo mức độ */}
     {item.level === "An toàn" ? (
       <TouchableOpacity
         style={styles.btnResolved}
-        onPress={() =>
-          Alert.alert("Thành công", "Đã đánh dấu giải quyết sự cố.")
-        }
+        onPress={() => Alert.alert("Thành công", "Đã đóng sự cố này.")}
       >
         <Ionicons
           name="checkmark-circle"
@@ -231,22 +299,35 @@ const AlertCard = ({ item, router }: any) => (
       </TouchableOpacity>
     ) : (
       <View style={styles.actionRow}>
+        {/* Nút Xác nhận thay đổi nội dung khi nhấn */}
         <TouchableOpacity
-          style={styles.btnOutline}
-          onPress={() =>
-            Alert.alert("Xác nhận", "Đã chuyển trạng thái sang Đang xử lý.")
-          }
+          style={[
+            styles.btnOutline,
+            item.status === "Đang xử lý" && {
+              borderColor: theme.colors.primary,
+              backgroundColor: "#EFF6FF",
+            },
+          ]}
+          onPress={onConfirm}
+          disabled={item.status === "Đang xử lý"}
         >
-          <Text style={styles.btnTextOutline}>Xác nhận</Text>
+          <Text
+            style={[
+              styles.btnTextOutline,
+              item.status === "Đang xử lý" && { color: theme.colors.primary },
+            ]}
+          >
+            {item.status === "Đang xử lý" ? "Đang xử lý" : "Xác nhận"}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.btnPrimary}
-          onPress={() =>
+          onPress={() => {
             router.push({
               pathname: "/alertDetail/[id]",
               params: { id: item.id },
-            })
-          }
+            });
+          }}
         >
           <Text style={styles.btnTextPrimary}>Xem chi tiết</Text>
         </TouchableOpacity>

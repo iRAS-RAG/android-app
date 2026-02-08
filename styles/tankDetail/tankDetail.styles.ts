@@ -31,7 +31,11 @@ export const styles = StyleSheet.create({
     shadowOpacity: 0.05,
   },
   metricLabel: { ...theme.typography.caption, marginTop: 8 },
-  metricValue: { fontSize: 20, fontWeight: "700", marginVertical: 4 },
+  metricValue: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginVertical: 4,
+  },
   metricTime: { fontSize: 10, color: theme.colors.textSecondary },
   chartCard: {
     margin: 20,
@@ -117,5 +121,13 @@ export const styles = StyleSheet.create({
   activeDot: {
     width: 20,
     backgroundColor: theme.colors.primary,
+  },
+  // Thêm vào trong StyleSheet.create của bạn
+  // Bổ sung metricUnit tại đây
+  metricUnit: {
+    fontSize: 12,
+    color: theme.colors.textSecondary, // Hoặc dùng màu theo props như trong file [id].tsx
+    marginLeft: 2,
+    fontWeight: "600",
   },
 });
