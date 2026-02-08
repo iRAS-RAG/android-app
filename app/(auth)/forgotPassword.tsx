@@ -3,7 +3,9 @@ import { theme } from "@/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
+import authService from "../../services/authService"; // Đảm bảo đường dẫn chính xác
 import {
+  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -14,9 +16,11 @@ import {
   View,
 } from "react-native";
 
-export default function ForgotPasswordScreen({ navigation }: any) {
+export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState("");
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Hàm kiểm tra định dạng Email chuẩn
   const validateEmail = (text: string) => {
@@ -25,8 +29,54 @@ export default function ForgotPasswordScreen({ navigation }: any) {
   };
 
   const isValidEmail = email.length === 0 || validateEmail(email);
-  const isButtonDisabled = email.length === 0 || !validateEmail(email);
+  const isButtonDisabled =
+    email.length === 0 || !validateEmail(email) || isLoading;
 
+  // Xử lý gửi yêu cầu khôi phục mật khẩu
+  const handleCheckEmail = async () => {
+    if (isButtonDisabled) return;
+
+    setIsLoading(true);
+    setErrorMessage("");
+
+    try {
+      console.log("--- BẮT ĐẦU GỬI YÊU CẦU QUÊN MẬT KHẨU ---");
+      console.log("Email gửi đi:", email); // Gọi đến Backend C# thông qua authService
+
+      const result = await authService.requestPasswordReset(email); // LOG DỮ LIỆU PHẢN HỒI THUẦN TÚY (PLAIN CODE)
+
+      console.log(
+        "Dữ liệu phản hồi từ Server (Full Result):",
+        JSON.stringify(result, null, 2),
+      );
+
+      if (result) {
+        console.log("Thông báo từ Backend:", result.message); // Chuyển sang trang VerifyOTP kèm theo email để xác thực
+        router.push({
+          pathname: "/(auth)/verifyOTP",
+          params: { email: email, mode: "forgot" },
+        });
+      }
+    } catch (error: any) {
+      console.log("--- LỖI PHÁT SINH ---"); // Log chi tiết lỗi từ Axios nếu có
+      if (error.response) {
+        console.log("Status Code lỗi:", error.response.status);
+        console.log(
+          "Nội dung lỗi thô (Plain Error):",
+          JSON.stringify(error.response.data, null, 2),
+        );
+      } else {
+        console.log("Lỗi không có response (Network/Timeout):", error.message);
+      }
+
+      setErrorMessage(
+        typeof error === "string" ? error : "Có lỗi xảy ra, vui lòng thử lại.",
+      );
+    } finally {
+      console.log("--- KẾT THÚC QUY TRÌNH ---");
+      setIsLoading(false);
+    }
+  };
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -37,6 +87,7 @@ export default function ForgotPasswordScreen({ navigation }: any) {
         <TouchableOpacity
           onPress={() => router.back()}
           style={{ marginBottom: 20 }}
+          disabled={isLoading}
         >
           <Ionicons
             name="chevron-back"
@@ -65,14 +116,16 @@ export default function ForgotPasswordScreen({ navigation }: any) {
             style={[
               styles.inputWrapper,
               focusedInput === "email" && styles.inputWrapperFocused,
-              !isValidEmail && { borderColor: theme.colors.danger }, // Đổi viền đỏ khi sai
+              (!isValidEmail || errorMessage !== "") && {
+                borderColor: theme.colors.danger,
+              },
             ]}
           >
             <Ionicons
               name="mail-outline"
               size={20}
               color={
-                !isValidEmail
+                !isValidEmail || errorMessage !== ""
                   ? theme.colors.danger
                   : focusedInput === "email"
                     ? theme.colors.primary
@@ -84,16 +137,20 @@ export default function ForgotPasswordScreen({ navigation }: any) {
               placeholder="Nhập địa chỉ email"
               placeholderTextColor={theme.colors.textSecondary}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (errorMessage) setErrorMessage("");
+              }}
               keyboardType="email-address"
               autoCapitalize="none"
+              editable={!isLoading}
               onFocus={() => setFocusedInput("email")}
               onBlur={() => setFocusedInput(null)}
             />
           </View>
 
-          {/* Dòng cảnh báo hiển thị khi email không hợp lệ */}
-          {!isValidEmail && (
+          {/* Cảnh báo định dạng email hoặc lỗi từ server */}
+          {(!isValidEmail || errorMessage !== "") && (
             <View
               style={{
                 flexDirection: "row",
@@ -101,7 +158,7 @@ export default function ForgotPasswordScreen({ navigation }: any) {
                 marginTop: -10,
                 marginBottom: 15,
                 marginLeft: 5,
-                gap: 4, // khoảng cách icon - text
+                gap: 4,
               }}
             >
               <Ionicons
@@ -115,7 +172,7 @@ export default function ForgotPasswordScreen({ navigation }: any) {
                   ...theme.typography.caption,
                 }}
               >
-                Email không hợp lệ. Vui lòng thử lại
+                {errorMessage || "Email không hợp lệ. Vui lòng thử lại"}
               </Text>
             </View>
           )}
@@ -128,18 +185,13 @@ export default function ForgotPasswordScreen({ navigation }: any) {
             ]}
             disabled={isButtonDisabled}
             activeOpacity={0.8}
-            onPress={() => {
-              // Khi email hợp lệ, chuyển hướng sang trang VerifyOTP
-              // Truyền thêm params email để trang sau sử dụng
-              router.push({
-                pathname: "/(auth)/verifyOTP", // Đảm bảo đường dẫn này khớp với cấu trúc thư mục của bạn
-                params: { email: email, mode: "forgot" },
-              });
-
-              console.log("Đang chuyển sang trang xác thực cho:", email);
-            }}
+            onPress={handleCheckEmail}
           >
-            <Text style={styles.loginButtonText}>Kiểm tra email</Text>
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.loginButtonText}>Kiểm tra email</Text>
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

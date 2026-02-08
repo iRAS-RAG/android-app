@@ -1,12 +1,12 @@
 "use client";
 
-import { styles } from "@/styles/auth/auth.styles"; // Sử dụng đúng đường dẫn file style của bạn
+import { styles } from "@/styles/auth/auth.styles";
 import { theme } from "@/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { Alert } from "react-native";
 import {
+  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -21,11 +21,12 @@ import {
 export default function VerifyOTP() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const email = (params.email as string) || "user@example.com";
+  const email = (params.email as string) || "";
   const mode = (params.mode as string) || "forgot";
 
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState(300);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(0);
   const inputsRef = useRef<(TextInput | null)[]>([]);
@@ -36,16 +37,12 @@ export default function VerifyOTP() {
     return () => clearInterval(timer);
   }, [timeLeft]);
 
-  useEffect(() => {
-    inputsRef.current[0]?.focus();
-  }, []);
-
   const handleChange = (value: string, index: number) => {
     if (/^\d?$/.test(value)) {
       const newOtp = [...otp];
       newOtp[index] = value;
       setOtp(newOtp);
-      setError(""); // Xóa lỗi khi người dùng nhập lại
+      setError("");
       if (value && index < 5) {
         inputsRef.current[index + 1]?.focus();
       }
@@ -58,46 +55,27 @@ export default function VerifyOTP() {
     }
   };
 
-  // Trong verifyOTP.tsx
-  const handleVerify = () => {
+  const handleVerify = async () => {
     const enteredOtp = otp.join("");
-    const DEMO_OTP = "123456";
+    if (enteredOtp.length !== 6) return;
 
-    if (enteredOtp === DEMO_OTP) {
-      setError("");
+    setIsLoading(true);
+    setError("");
 
-      if (mode === "register") {
-        // HIỂN THỊ POP-UP ĐĂNG KÝ THÀNH CÔNG
-        Alert.alert(
-          "Đăng ký thành công",
-          "Tài khoản kỹ thuật viên của bạn đã được kích hoạt. Chào mừng bạn đến với hệ thống iRAS-RAG.",
-          [
-            {
-              text: "Vào trang chủ",
-              onPress: () => router.replace("/(tabs)"), // Dùng replace để không quay lại trang OTP
-            },
-          ],
-        );
-      } else {
-        // Luồng quên mật khẩu giữ nguyên
-        router.push({
-          pathname: "/resetPassword",
-          params: { email: email },
-        });
-      }
-    } else {
-      // Hiển thị lỗi màu danger nếu sai mã
-      setError("Mã OTP không hợp lệ, vui lòng thử lại");
+    try {
+      // Trong luồng iRAS-RAG, ta chuyển mã OTP sang trang reset để Backend xác thực cùng lúc với mật khẩu mới
+      router.push({
+        pathname: "/(auth)/resetPassword",
+        params: { email: email, otp: enteredOtp },
+      });
+    } catch (err: any) {
+      setError("Có lỗi xảy ra, vui lòng thử lại.");
+    } finally {
+      setIsLoading(false);
     }
   };
-  const handleResendOTP = () => {
-    setTimeLeft(60);
-    setOtp(Array(6).fill(""));
-    setError("");
-    inputsRef.current[0]?.focus();
-  };
 
-  const isButtonDisabled = otp.join("").length !== 6;
+  const isButtonDisabled = otp.join("").length !== 6 || isLoading;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -105,7 +83,6 @@ export default function VerifyOTP() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.inner}
       >
-        {/* Nút quay lại sử dụng style thống nhất */}
         <TouchableOpacity
           onPress={() => router.back()}
           style={{ marginBottom: 20 }}
@@ -118,35 +95,30 @@ export default function VerifyOTP() {
         </TouchableOpacity>
 
         <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Header Section kế thừa từ style chung */}
           <View style={styles.header}>
-            {/* ... Image giữ nguyên ... */}
+            <Image
+              source={require("../../assets/images/logo1.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
             <Text style={styles.title}>
-              {mode === "register"
-                ? "Kích hoạt tài khoản"
-                : "Xác nhận danh tính"}
+              {mode === "register" ? "Kích hoạt" : "Xác nhận mã"}
             </Text>
             <Text style={[styles.subTitleDescription, { textAlign: "center" }]}>
-              {mode === "register"
-                ? "Nhập mã để hoàn tất đăng ký kỹ thuật viên RAS."
-                : "Nhập mã để xác nhận yêu cầu đặt lại mật khẩu."}
+              Mã xác thực đã được gửi đến email: {email}
             </Text>
           </View>
 
-          {/* Khu vực nhập OTP */}
           <View style={styles.otpContainer}>
             {otp.map((digit, index) => (
               <TextInput
                 key={index}
-                ref={(el) => {
-                  // Chỉ thực hiện gán giá trị, không sử dụng hàm mũi tên trả về giá trị trực tiếp
+                ref={(el: TextInput | null) => {
                   inputsRef.current[index] = el;
                 }}
                 style={[
                   styles.otpInput,
-                  // Hiển thị viền xanh khi đang nhấn vào ô (focused)
                   focusedIndex === index && styles.otpInputFocus,
-                  // Hiển thị viền đỏ nếu có lỗi xác thực
                   error ? styles.otpInputError : null,
                 ]}
                 keyboardType="numeric"
@@ -160,7 +132,6 @@ export default function VerifyOTP() {
             ))}
           </View>
 
-          {/* Đồng hồ đếm ngược và Gửi lại mã */}
           <View style={{ marginBottom: theme.spacing.lg }}>
             {timeLeft > 0 ? (
               <Text style={styles.timerText}>
@@ -168,16 +139,14 @@ export default function VerifyOTP() {
                 {String(timeLeft % 60).padStart(2, "0")}s
               </Text>
             ) : (
-              <TouchableOpacity onPress={handleResendOTP}>
+              <TouchableOpacity onPress={() => setTimeLeft(60)}>
                 <Text style={styles.resendButtonText}>Gửi lại mã OTP</Text>
               </TouchableOpacity>
             )}
           </View>
 
-          {/* Hiển thị lỗi đồng nhất màu danger */}
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          {/* Nút xác nhận sử dụng lại loginButton style */}
           <TouchableOpacity
             style={[
               styles.loginButton,
@@ -186,7 +155,11 @@ export default function VerifyOTP() {
             disabled={isButtonDisabled}
             onPress={handleVerify}
           >
-            <Text style={styles.loginButtonText}>Xác nhận</Text>
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.loginButtonText}>Xác nhận</Text>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

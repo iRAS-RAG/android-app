@@ -1,12 +1,14 @@
 "use client";
 
-import { styles } from "@/styles/auth/auth.styles"; //
-import { theme } from "@/theme"; //
+import { styles } from "@/styles/auth/auth.styles";
+import { theme } from "@/theme";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
+import authService from "../../services/authService";
 import {
-  Alert, // Thêm Alert để hiển thị thông báo thành công
+  Alert,
+  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -20,13 +22,17 @@ import {
 
 export default function ResetPassword() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+
+  // Đảm bảo lấy đúng giá trị chuỗi từ params
+  const email = Array.isArray(params.email) ? params.email[0] : params.email;
+  const otp = Array.isArray(params.otp) ? params.otp[0] : params.otp;
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [focusedInput, setFocusedInput] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Logic xác thực mật khẩu
   const validations = {
     length: password.length >= 8,
     lower: /[a-z]/.test(password),
@@ -38,20 +44,30 @@ export default function ResetPassword() {
   const isValidPassword = Object.values(validations).every(Boolean);
   const isMatch = password === confirmPassword && password.length > 0;
 
-  // Xử lý xác nhận đổi mật khẩu thành công
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!(isValidPassword && isMatch)) return;
 
-    Alert.alert(
-      "Thành công",
-      "Mật khẩu của bạn đã được thay đổi. Vui lòng đăng nhập lại bằng mật khẩu mới.",
-      [
-        {
-          text: "Đăng nhập",
-          onPress: () => router.push("/(auth)/login"),
-        },
-      ],
-    );
+    setIsLoading(true);
+    try {
+      // Gọi API với đầy đủ các trường mà Backend yêu cầu
+      await authService.resetPassword({
+        email: email as string,
+        code: otp as string, // otp từ trang trước truyền sang
+        newPassword: password, // Mật khẩu mới
+        confirmNewPassword: confirmPassword, // Xác nhận mật khẩu mới
+      });
+
+      Alert.alert("Thành công", "Mật khẩu của bạn đã được cập nhật.", [
+        { text: "Đăng nhập", onPress: () => router.replace("/(auth)/login") },
+      ]);
+    } catch (err: any) {
+      Alert.alert(
+        "Lỗi",
+        typeof err === "string" ? err : "Mã xác thực hoặc mật khẩu không đúng.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -60,52 +76,32 @@ export default function ResetPassword() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.inner}
       >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{ marginBottom: 20 }}
-        >
-          <Ionicons
-            name="chevron-back"
-            size={24}
-            color={theme.colors.textPrimary}
-          />
-        </TouchableOpacity>
-
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <Image
-              source={require("@/assets/images/logo1.png")}
-              style={[styles.logo, { width: 140, height: 140 }]}
+              source={require("../../assets/images/logo1.png")}
+              style={styles.logo}
               resizeMode="contain"
             />
-            <Text style={styles.title}>Tạo mật khẩu mới</Text>
-            <Text style={[styles.subTitleDescription, { textAlign: "center" }]}>
-              Mật khẩu mới của bạn phải đủ mạnh để bảo vệ dữ liệu hệ thống RAS.
+            <Text style={styles.title}>Mật khẩu mới</Text>
+            <Text style={styles.subTitleDescription}>
+              Thiết lập mật khẩu mới cho tài khoản của bạn
             </Text>
           </View>
 
           <View style={styles.form}>
-            {/* Mật khẩu mới */}
-            <View
-              style={[
-                styles.inputWrapper,
-                focusedInput === "pass" && styles.inputWrapperFocused,
-              ]}
-            >
+            <View style={styles.inputWrapper}>
               <Ionicons
                 name="lock-closed-outline"
                 size={20}
                 color={theme.colors.textSecondary}
               />
               <TextInput
-                style={[styles.input, { color: theme.colors.textPrimary }]}
-                placeholder="Mật khẩu mới"
-                placeholderTextColor={theme.colors.textSecondary}
+                style={styles.input}
+                placeholder="Mật khẩu mới (ít nhất 8 ký tự)"
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
-                onFocus={() => setFocusedInput("pass")}
-                onBlur={() => setFocusedInput(null)}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons
@@ -116,121 +112,51 @@ export default function ResetPassword() {
               </TouchableOpacity>
             </View>
 
-            {/* Quy tắc mật khẩu */}
-            {password.length > 0 && (
-              <View style={{ marginBottom: theme.spacing.md, paddingLeft: 5 }}>
-                <RuleItem label="Ít nhất 8 ký tự" valid={validations.length} />
-                <RuleItem
-                  label="Gồm chữ thường và chữ hoa"
-                  valid={validations.lower && validations.upper}
-                />
-                <RuleItem
-                  label="Gồm chữ số và ký tự đặc biệt"
-                  valid={validations.number && validations.special}
-                />
-              </View>
-            )}
-
-            {/* Xác nhận mật khẩu */}
-            <View
-              style={[
-                styles.inputWrapper,
-                focusedInput === "confirm" && styles.inputWrapperFocused,
-                confirmPassword.length > 0 &&
-                  !isMatch && { borderColor: theme.colors.danger },
-              ]}
-            >
+            <View style={styles.inputWrapper}>
               <Ionicons
                 name="shield-checkmark-outline"
                 size={20}
                 color={theme.colors.textSecondary}
               />
               <TextInput
-                style={[styles.input, { color: theme.colors.textPrimary }]}
-                placeholder="Xác nhận mật khẩu"
-                placeholderTextColor={theme.colors.textSecondary}
-                secureTextEntry={!showConfirmPassword}
+                style={styles.input}
+                placeholder="Xác nhận lại mật khẩu"
+                secureTextEntry={!showPassword}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
-                onFocus={() => setFocusedInput("confirm")}
-                onBlur={() => setFocusedInput(null)}
-                contextMenuHidden={true}
               />
-              <TouchableOpacity
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-              >
-                <Ionicons
-                  name={showConfirmPassword ? "eye-outline" : "eye-off-outline"}
-                  size={22}
-                  color={theme.colors.textSecondary}
-                />
-              </TouchableOpacity>
             </View>
 
-            {/* Thông báo lỗi không khớp kèm ICON cảnh báo */}
-            {confirmPassword.length > 0 && !isMatch && (
-              <View
+            {/* Hint hướng dẫn bảo mật */}
+            <View style={{ marginBottom: 20 }}>
+              <Text
                 style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginTop: -10,
-                  marginBottom: 15,
-                  marginLeft: 5,
-                  gap: 4,
+                  fontSize: 12,
+                  color: isMatch ? "green" : theme.colors.textSecondary,
                 }}
               >
-                <Ionicons
-                  name="alert-circle-outline"
-                  size={14}
-                  color={theme.colors.danger}
-                />
-                <Text
-                  style={{
-                    color: theme.colors.danger,
-                    ...theme.typography.caption,
-                  }}
-                >
-                  Mật khẩu xác nhận không khớp.
-                </Text>
-              </View>
-            )}
+                {isMatch ? "✓ Mật khẩu khớp" : "Mật khẩu phải trùng khớp"}
+              </Text>
+            </View>
 
             <TouchableOpacity
               style={[
                 styles.loginButton,
-                !(isValidPassword && isMatch) && styles.loginButtonDisabled,
+                (!(isValidPassword && isMatch) || isLoading) &&
+                  styles.loginButtonDisabled,
               ]}
-              disabled={!(isValidPassword && isMatch)}
+              disabled={!(isValidPassword && isMatch) || isLoading}
               onPress={handleConfirm}
             >
-              <Text style={styles.loginButtonText}>Cập nhật mật khẩu</Text>
+              {isLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.loginButtonText}>Cập nhật mật khẩu</Text>
+              )}
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  );
-}
-
-function RuleItem({ label, valid }: { label: string; valid: boolean }) {
-  return (
-    <View
-      style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}
-    >
-      <Ionicons
-        name={valid ? "checkmark-circle" : "ellipse-outline"}
-        size={16}
-        color={valid ? theme.colors.success : theme.colors.textSecondary}
-      />
-      <Text
-        style={{
-          ...theme.typography.caption,
-          marginLeft: 8,
-          color: valid ? theme.colors.textPrimary : theme.colors.textSecondary,
-        }}
-      >
-        {label}
-      </Text>
-    </View>
   );
 }
