@@ -11,10 +11,15 @@ import {
   View,
   ActivityIndicator,
   RefreshControl,
+  Dimensions,
 } from "react-native";
+import { Drawer } from "react-native-drawer-layout";
 import { dashboardApi } from "@/api/dashboardApi";
+import axiosClient from "@/api/axiosClient";
 
-// DỮ LIỆU GIẢ LẬP (MOCK) - Dùng cho các phần Backend chưa có API đầy đủ
+const { width } = Dimensions.get("window");
+
+// DỮ LIỆU GIẢ LẬP CHO CÁC PHẦN CHƯA CÓ API SENSOR CHI TIẾT
 const MOCK_TEMPLATE = {
   type: "Cá Rô Phi",
   englishName: "Tilapia",
@@ -28,6 +33,7 @@ const MOCK_TEMPLATE = {
       label: "Nhiệt độ",
       value: "28.5",
       unit: "°C",
+      time: "2 phút trước",
       icon: "thermometer",
       color: theme.colors.danger,
     },
@@ -35,6 +41,7 @@ const MOCK_TEMPLATE = {
       label: "pH",
       value: "7.2",
       unit: "pH",
+      time: "1 phút trước",
       icon: "droplet",
       color: theme.colors.primary,
     },
@@ -42,6 +49,7 @@ const MOCK_TEMPLATE = {
       label: "Oxy hòa tan",
       value: "6.8",
       unit: "mg/L",
+      time: "5 phút trước",
       icon: "wind",
       color: theme.colors.success,
     },
@@ -50,37 +58,35 @@ const MOCK_TEMPLATE = {
 
 export default function DashboardScreen() {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeSensor, setActiveSensor] = useState(0);
 
-  // STATE DỮ LIỆU THẬT
+  // STATE DỮ LIỆU
   const [tanks, setTanks] = useState<any[]>([]);
-  const [stats, setStats] = useState({
-    totalTanks: 0,
-    totalAlerts: 0,
-  });
+  const [farmInfo, setFarmInfo] = useState<any>(null);
+  const [stats, setStats] = useState({ totalTanks: 0, totalAlerts: 0 });
 
   const loadDashboardData = async () => {
     try {
-      // Gọi các API đã có sẵn từ Backend
+      // 1. Lấy thông tin Farm từ FarmController
+      const farmRes = await axiosClient.get("/farms?page=1&pageSize=1");
+      setFarmInfo(farmRes.data.data?.[0]);
+
+      // 2. Lấy dữ liệu Dashboard
       const [tankRes, alertRes] = await Promise.all([
         dashboardApi.getFishTanks(1, 10),
         dashboardApi.getAlerts(1, 1),
       ]);
 
-      // Ánh xạ dữ liệu dựa trên kết quả Swagger thực tế
-      const apiTanks = tankRes.data.data || [];
-      const totalTanksFromApi = tankRes.data.meta?.totalItems || 0;
-      const totalAlertsFromApi = alertRes.data.meta?.totalItems || 0;
-
-      setTanks(apiTanks);
+      setTanks(tankRes.data.data || []);
       setStats({
-        totalTanks: totalTanksFromApi,
-        totalAlerts: totalAlertsFromApi,
+        totalTanks: tankRes.data.meta?.totalItems || 0,
+        totalAlerts: alertRes.data.meta?.totalItems || 0,
       });
     } catch (error) {
-      console.error("Lỗi kết nối API Dashboard:", error);
+      console.error("Lỗi kết nối Dashboard:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -91,96 +97,195 @@ export default function DashboardScreen() {
     loadDashboardData();
   }, []);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadDashboardData();
-  };
+  // NỘI DUNG SIDEBAR (DRAWER)
+  const renderDrawerContent = () => (
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFF" }}>
+      <View
+        style={{
+          padding: 20,
+          borderBottomWidth: 1,
+          borderBottomColor: "#F1F5F9",
+        }}
+      >
+        <View
+          style={{
+            width: 60,
+            height: 60,
+            borderRadius: 30,
+            backgroundColor: theme.colors.primary,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <MaterialCommunityIcons name="home-modern" size={30} color="#FFF" />
+        </View>
+        <Text style={{ ...theme.typography.h3, marginTop: 15 }}>
+          {farmInfo?.name || "Trang trại iRAS"}
+        </Text>
+        <Text
+          style={{
+            ...theme.typography.caption,
+            color: theme.colors.textSecondary,
+          }}
+        >
+          Quản lý hệ thống RAS chuyên sâu
+        </Text>
+      </View>
 
-  if (loading) {
+      <View style={{ padding: 20, gap: 25 }}>
+        <SidebarItem
+          icon="location-outline"
+          label="Địa chỉ"
+          value={farmInfo?.address || "Đang cập nhật..."}
+        />
+        <SidebarItem
+          icon="call-outline"
+          label="Điện thoại"
+          value={farmInfo?.phoneNumber || "Đang cập nhật..."}
+        />
+        <SidebarItem
+          icon="mail-outline"
+          label="Email"
+          value={farmInfo?.email || "Đang cập nhật..."}
+        />
+      </View>
+
+      <TouchableOpacity
+        style={{
+          marginTop: "auto",
+          margin: 20,
+          padding: 15,
+          backgroundColor: "#F8FAFC",
+          borderRadius: 12,
+          alignItems: "center",
+        }}
+        onPress={() => setOpen(false)}
+      >
+        <Text style={{ color: theme.colors.primary, fontWeight: "700" }}>
+          Thu nhỏ Menu
+        </Text>
+      </TouchableOpacity>
+    </SafeAreaView>
+  );
+
+  if (loading)
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <View style={{ flex: 1, justifyContent: "center" }}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
-  }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* PHẦN 1: HEADER & THỐNG KÊ NHANH (API THẬT) */}
-        <View style={styles.headerSection}>
-          <View style={styles.headerInfo}>
-            <TouchableOpacity>
-              <Ionicons name="menu" size={28} color="#334155" />
-            </TouchableOpacity>
-            <View style={{ flex: 1, marginLeft: 15 }}>
-              <Text style={styles.farmName}>
-                {tanks[0]?.farmName || "Hệ thống RAS"}
-              </Text>
-              <Text style={styles.techName}>Kỹ thuật viên: Nguyễn Văn A</Text>
-            </View>
-          </View>
-
-          <View style={styles.quickStatsRow}>
-            <View style={styles.statCard}>
-              <Text style={styles.statLabel}>Tổng số bể</Text>
-              <Text style={styles.statValue}>{stats.totalTanks}</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statLabel}>Cảnh báo</Text>
-              <Text style={[styles.statValue, { color: theme.colors.danger }]}>
-                {stats.totalAlerts}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* PHẦN 2: CẢM BIẾN (DỮ LIỆU GIẢ LẬP) */}
-        <View style={styles.sensorContainer}>
-          <Text style={styles.sectionTitle}>Cảm biến theo dõi</Text>
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onScroll={(e) => {
-              const slide = Math.ceil(
-                e.nativeEvent.contentOffset.x /
-                  e.nativeEvent.layoutMeasurement.width,
-              );
-              if (slide !== activeSensor) setActiveSensor(slide);
-            }}
-          >
-            {MOCK_TEMPLATE.sensors.map((item, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.sensorCard,
-                  { borderLeftColor: item.color, borderLeftWidth: 4 },
-                ]}
-              >
-                <Feather name={item.icon as any} size={20} color={item.color} />
-                <Text style={styles.sensorLabel}>{item.label}</Text>
-                <View style={{ flexDirection: "row", alignItems: "baseline" }}>
-                  <Text style={[styles.sensorValue, { color: item.color }]}>
-                    {item.value}
-                  </Text>
-                  <Text style={styles.sensorUnit}> {item.unit}</Text>
-                </View>
+    <Drawer
+      open={open}
+      onOpen={() => setOpen(true)}
+      onClose={() => setOpen(false)}
+      drawerStyle={{ width: width * 0.75 }}
+      renderDrawerContent={renderDrawerContent}
+    >
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                loadDashboardData();
+              }}
+            />
+          }
+        >
+          {/* PHẦN 1: HEADER */}
+          <View style={styles.headerSection}>
+            <View style={styles.headerInfo}>
+              <TouchableOpacity onPress={() => setOpen(true)}>
+                <Ionicons name="menu" size={28} color="#334155" />
+              </TouchableOpacity>
+              <View style={{ flex: 1, marginLeft: 15 }}>
+                <Text style={styles.farmName}>
+                  {farmInfo?.name || "Hệ thống RAS"}
+                </Text>
+                <Text style={styles.techName}>Kỹ thuật viên: Nguyễn Văn A</Text>
               </View>
-            ))}
-          </ScrollView>
-        </View>
+              <TouchableOpacity style={styles.notiBtn}>
+                <Ionicons
+                  name="notifications-outline"
+                  size={26}
+                  color="#334155"
+                />
+                <View style={styles.notiBadge} />
+              </TouchableOpacity>
+            </View>
 
-        {/* PHẦN 3: DANH SÁCH BỂ NUÔI (HỖN HỢP API THẬT & MOCK) */}
-        <View style={styles.tankContainer}>
-          <Text style={styles.sectionTitle}>Danh sách bể nuôi</Text>
-          {tanks.length > 0 ? (
-            tanks.map((tank) => (
+            <View style={styles.quickStatsRow}>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Tổng số bể</Text>
+                <Text style={styles.statValue}>{stats.totalTanks}</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Cảnh báo</Text>
+                <Text
+                  style={[styles.statValue, { color: theme.colors.danger }]}
+                >
+                  {stats.totalAlerts}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* PHẦN 2: CẢM BIẾN (MOCK) */}
+          <View style={styles.sensorContainer}>
+            <Text style={styles.sectionTitle}>Cảm biến theo dõi</Text>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScroll={(e) => {
+                const slide = Math.ceil(
+                  e.nativeEvent.contentOffset.x /
+                    e.nativeEvent.layoutMeasurement.width,
+                );
+                if (slide !== activeSensor) setActiveSensor(slide);
+              }}
+            >
+              {MOCK_TEMPLATE.sensors.map((item, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.sensorCard,
+                    { borderLeftColor: item.color, borderLeftWidth: 4 },
+                  ]}
+                >
+                  <Feather
+                    name={item.icon as any}
+                    size={20}
+                    color={item.color}
+                  />
+                  <Text style={styles.sensorLabel}>{item.label}</Text>
+                  <View
+                    style={{ flexDirection: "row", alignItems: "baseline" }}
+                  >
+                    <Text style={[styles.sensorValue, { color: item.color }]}>
+                      {item.value}
+                    </Text>
+                    <Text style={styles.sensorUnit}> {item.unit}</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* PHẦN 3: DANH SÁCH BỂ */}
+          <View style={styles.tankContainer}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Danh sách bể nuôi</Text>
+              <TouchableOpacity>
+                <Text style={styles.viewAll}>Xem tất cả</Text>
+              </TouchableOpacity>
+            </View>
+
+            {tanks.map((tank) => (
               <View key={tank.id} style={styles.tankCard}>
                 <View style={styles.tankHeader}>
                   <View style={styles.tankAvatar}>
@@ -193,9 +298,6 @@ export default function DashboardScreen() {
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={styles.tankName}>{tank.name}</Text>
                     <Text style={styles.fishName}>{MOCK_TEMPLATE.type}</Text>
-                    <Text style={styles.fishEnglish}>
-                      {MOCK_TEMPLATE.englishName}
-                    </Text>
                   </View>
                   <Ionicons
                     name="chevron-forward"
@@ -204,7 +306,6 @@ export default function DashboardScreen() {
                   />
                 </View>
 
-                {/* Grid stats dùng Mock vì API FishTank hiện tại chưa có data này */}
                 <View style={styles.tankStatsGrid}>
                   <View style={styles.gridItem}>
                     <Text style={styles.gridLabel}>Dung tích</Text>
@@ -214,24 +315,6 @@ export default function DashboardScreen() {
                     <Text style={styles.gridLabel}>Số lượng</Text>
                     <Text style={styles.gridValue}>{MOCK_TEMPLATE.count}</Text>
                   </View>
-                </View>
-
-                <View style={styles.envGrid}>
-                  <EnvItem
-                    label="Nhiệt độ"
-                    value={`${MOCK_TEMPLATE.temp}°C`}
-                    color={theme.colors.danger}
-                  />
-                  <EnvItem
-                    label="pH"
-                    value={MOCK_TEMPLATE.ph}
-                    color={theme.colors.primary}
-                  />
-                  <EnvItem
-                    label="DO"
-                    value={MOCK_TEMPLATE.do}
-                    color={theme.colors.success}
-                  />
                 </View>
 
                 <TouchableOpacity
@@ -246,27 +329,47 @@ export default function DashboardScreen() {
                   />
                 </TouchableOpacity>
               </View>
-            ))
-          ) : (
-            <Text
-              style={{
-                textAlign: "center",
-                marginTop: 20,
-                color: theme.colors.textSecondary,
-              }}
-            >
-              Chưa có dữ liệu từ hệ thống.
-            </Text>
-          )}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+            ))}
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </Drawer>
   );
 }
 
-const EnvItem = ({ label, value, color }: any) => (
-  <View style={[styles.envItem, { backgroundColor: `${color}10` }]}>
-    <Text style={[styles.envLabel, { color }]}>{label}</Text>
-    <Text style={[styles.envValue, { color }]}>{value}</Text>
+const SidebarItem = ({ icon, label, value }: any) => (
+  <View style={{ flexDirection: "row", alignItems: "center" }}>
+    <View
+      style={{
+        width: 36,
+        height: 36,
+        borderRadius: 8,
+        backgroundColor: "#EFF6FF",
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
+      <Ionicons name={icon} size={18} color={theme.colors.primary} />
+    </View>
+    <View style={{ marginLeft: 12 }}>
+      <Text
+        style={{
+          fontSize: 10,
+          color: theme.colors.textSecondary,
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </Text>
+      <Text
+        style={{
+          fontSize: 13,
+          fontWeight: "600",
+          color: theme.colors.textPrimary,
+        }}
+      >
+        {value}
+      </Text>
+    </View>
   </View>
 );
