@@ -2,7 +2,7 @@ import { styles } from "@/styles/alerts/alerts.styles";
 import { theme } from "@/theme";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -11,115 +11,204 @@ import {
   TouchableOpacity,
   View,
   Alert,
+  Modal,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
-
-// Dữ liệu giả lập ban đầu
-const INITIAL_ALERTS_DATA = [
-  {
-    id: "1",
-    type: "NH3",
-    title: "Mức NH3 vượt ngưỡng nguy hiểm",
-    desc: "Nồng độ amoniac cao có thể gây sốc cho cá",
-    value: "0.35 mg/L",
-    limit: "0.30 mg/L",
-    level: "Nguy hiểm",
-    status: "Đang xảy ra",
-    tank: "Bể A-01",
-    time: "2 phút trước",
-    color: theme.colors.danger,
-  },
-  {
-    id: "2",
-    type: "Pump",
-    title: "Máy bơm #2 rung động bất thường",
-    desc: "Phát hiện mức rung vượt ngưỡng an toàn",
-    value: "4.8 mm/s",
-    limit: "3.5 mm/s",
-    level: "Nguy hiểm",
-    status: "Đang xảy ra",
-    tank: "Bể A-02",
-    time: "5 phút trước",
-    color: theme.colors.danger,
-  },
-  {
-    id: "3",
-    type: "DO",
-    title: "Oxy hòa tan thấp",
-    desc: "DO giảm xuống dưới mức khuyến nghị",
-    value: "4.2 mg/L",
-    limit: "5.0 mg/L",
-    level: "Cảnh báo",
-    status: "Đang xảy ra",
-    tank: "Bể B-03",
-    time: "15 phút trước",
-    color: theme.colors.warning,
-  },
-  {
-    id: "4",
-    type: "Temp",
-    title: "Nhiệt độ ổn định trở lại",
-    desc: "Nhiệt độ đã về mức tối ưu",
-    value: "28.5°C",
-    limit: "26-30°C",
-    level: "An toàn",
-    status: "Đã giải quyết",
-    tank: "Bể C-01",
-    time: "1 giờ trước",
-    color: theme.colors.success,
-  },
-];
+// Đảm bảo bạn đã tạo file alertService như hướng dẫn trước đó
+import { alertService } from "@/services/alertService";
 
 export default function AlertsScreen() {
   const router = useRouter();
-  const [filter, setFilter] = useState("Tất cả");
-  // Quản lý danh sách cảnh báo bằng State để cập nhật trạng thái động
-  const [alerts, setAlerts] = useState(INITIAL_ALERTS_DATA);
-  const [searchQuery, setSearchQuery] = useState("");
 
-  // Xử lý khi nhấn nút Xác nhận
-  const handleConfirm = (id: string) => {
-    setAlerts((prevAlerts) =>
-      prevAlerts.map((alert) =>
-        alert.id === id ? { ...alert, status: "Đang xử lý" } : alert,
-      ),
-    );
-    Alert.alert("Thông báo", "Đã xác nhận sự cố. Trạng thái: Đang xử lý.");
+  // --- STATE QUẢN LÝ DỮ LIỆU & UI ---
+  const [alerts, setAlerts] = useState<any[]>([]); // Dữ liệu danh sách
+  const [loading, setLoading] = useState(true); // Trạng thái tải lần đầu
+  const [refreshing, setRefreshing] = useState(false); // Trạng thái kéo để làm mới
+
+  // --- STATE BỘ LỌC ---
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("Tất cả");
+  const [showTimeMenu, setShowTimeMenu] = useState(false);
+  const [timeFilter, setTimeFilter] = useState("Tất cả");
+  const timeOptions = ["Tất cả", "Gần đây", "Hôm nay", "Hôm qua"];
+
+  // --- 1. GỌI API LẤY DỮ LIỆU ---
+  const fetchAlerts = useCallback(async () => {
+    try {
+      // Gọi service (Service này đã bao gồm logic: Thử API -> Lỗi -> Dùng Mock Data)
+      const data = await alertService.getAlerts();
+      setAlerts(data);
+    } catch (error) {
+      console.error("Fetch error:", error);
+      Alert.alert("Lỗi", "Không thể tải dữ liệu cảnh báo.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  // Gọi API khi màn hình vừa mở
+  useEffect(() => {
+    fetchAlerts();
+  }, [fetchAlerts]);
+
+  // Xử lý khi người dùng kéo xuống để refresh
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchAlerts();
   };
-  // 2. Logic Lọc dữ liệu kết hợp cả Tìm kiếm và Tab bộ lọc
+
+  // --- 2. LOGIC LỌC DỮ LIỆU (CLIENT-SIDE) ---
   const filteredAlerts = alerts.filter((item) => {
-    // Lọc theo từ khóa tìm kiếm (Tên sự cố hoặc Mã bể)
+    // Lọc theo từ khóa (Tiêu đề hoặc tên bể)
     const matchesSearch =
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.tank.toLowerCase().includes(searchQuery.toLowerCase());
 
-    // Lọc theo Tab (Nguy hiểm, Cảnh báo, Đang xử lý)
-    const matchesTab =
-      filter === "Tất cả" ||
-      (filter === "Nguy hiểm" && item.level === "Nguy hiểm") ||
-      (filter === "Cảnh báo" && item.level === "Cảnh báo") ||
-      (filter === "Đang xử lý" && item.status === "Đang xử lý");
+    // Lọc theo Tab trạng thái
+    const matchesStatus =
+      statusFilter === "Tất cả" ||
+      (statusFilter === "Nguy hiểm" && item.level === "Nguy hiểm") ||
+      (statusFilter === "Cảnh báo" && item.level === "Cảnh báo") ||
+      (statusFilter === "Đang xử lý" && item.status === "Đang xử lý");
 
-    return matchesSearch && matchesTab;
+    // Lọc theo thời gian (Dựa trên chuỗi string trả về từ service)
+    let matchesTime = true;
+    if (timeFilter === "Gần đây") matchesTime = item.time.includes("phút");
+    else if (timeFilter === "Hôm nay")
+      matchesTime = item.time.includes("phút") || item.time.includes("giờ");
+    else if (timeFilter === "Hôm qua")
+      matchesTime = item.time.includes("Hôm qua");
+
+    return matchesSearch && matchesStatus && matchesTime;
   });
 
+  // --- 3. XỬ LÝ TƯƠNG TÁC (CẬP NHẬT TRẠNG THÁI) ---
+  const handleConfirm = async (id: string) => {
+    // Optimistic Update: Cập nhật UI ngay lập tức cho mượt
+    setAlerts((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, status: "Đang xử lý" } : a)),
+    );
+
+    // Gọi API update ngầm
+    await alertService.updateStatus(id, "processing");
+    Alert.alert("Thông báo", "Đã xác nhận sự cố, hệ thống đang theo dõi.");
+  };
+
+  const handleResolve = async (id: string) => {
+    // Optimistic Update
+    setAlerts((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, status: "Đã giải quyết" } : a)),
+    );
+
+    // Gọi API update ngầm
+    await alertService.updateStatus(id, "resolved");
+    Alert.alert("Thành công", "Đã đóng sự cố.");
+  };
+
+  // --- RENDER GIAO DIỆN ---
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
-      {/* HEADER: BỘ LỌC & TÌM KIẾM */}
+      {/* HEADER & FILTERS */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View>
             <Text style={styles.headerTitle}>Cảnh báo</Text>
-            <Text style={styles.headerSubTitle}>8 thông báo mới</Text>
+            <Text style={styles.headerSubTitle}>
+              {filteredAlerts.length} thông báo
+            </Text>
           </View>
-          <TouchableOpacity style={styles.filterBtn}>
-            <Ionicons
-              name="filter-outline"
-              size={22}
-              color={theme.colors.textPrimary}
-            />
+
+          {/* DROPDOWN THỜI GIAN */}
+          <TouchableOpacity
+            style={[
+              styles.filterBtn,
+              timeFilter !== "Tất cả" && {
+                backgroundColor: theme.colors.primary + "15",
+                borderColor: theme.colors.primary,
+              },
+            ]}
+            onPress={() => setShowTimeMenu(true)}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons
+                name="time-outline"
+                size={16}
+                color={
+                  timeFilter !== "Tất cả"
+                    ? theme.colors.primary
+                    : theme.colors.textPrimary
+                }
+                style={{ marginRight: 6 }}
+              />
+              <Text
+                style={{
+                  marginRight: 4,
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color:
+                    timeFilter !== "Tất cả"
+                      ? theme.colors.primary
+                      : theme.colors.textPrimary,
+                }}
+              >
+                {timeFilter}
+              </Text>
+              <Ionicons
+                name="chevron-down"
+                size={14}
+                color={
+                  timeFilter !== "Tất cả"
+                    ? theme.colors.primary
+                    : theme.colors.textPrimary
+                }
+              />
+            </View>
           </TouchableOpacity>
         </View>
 
+        {/* MODAL CHỌN THỜI GIAN */}
+        <Modal visible={showTimeMenu} transparent animationType="fade">
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            onPress={() => setShowTimeMenu(false)}
+          >
+            <View style={styles.dropdownMenu}>
+              {timeOptions.map((opt) => (
+                <TouchableOpacity
+                  key={opt}
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setTimeFilter(opt);
+                    setShowTimeMenu(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.menuText,
+                      timeFilter === opt && {
+                        color: theme.colors.primary,
+                        fontWeight: "700",
+                      },
+                    ]}
+                  >
+                    {opt}
+                  </Text>
+                  {timeFilter === opt && (
+                    <Ionicons
+                      name="checkmark"
+                      size={18}
+                      color={theme.colors.primary}
+                    />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* THANH TÌM KIẾM */}
         <View style={styles.searchContainer}>
           <Ionicons
             name="search-outline"
@@ -130,213 +219,105 @@ export default function AlertsScreen() {
             placeholder="Tìm kiếm cảnh báo, bể..."
             style={styles.searchInput}
             value={searchQuery}
-            onChangeText={(text) => setSearchQuery(text)} // Cập nhật state khi nhập chữ
-            clearButtonMode="while-editing" // Hiện nút X xóa nhanh trên iOS
+            onChangeText={setSearchQuery}
           />
         </View>
 
+        {/* BỘ LỌC TRẠNG THÁI (TABS) */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.filterGroup}
         >
           <FilterTab
+            icon="layers-outline"
             label="Tổng"
-            count={8}
-            active={filter === "Tất cả"}
-            onPress={() => setFilter("Tất cả")}
+            count={alerts.length} // Đếm tổng số lượng thực tế
+            active={statusFilter === "Tất cả"}
+            onPress={() => setStatusFilter("Tất cả")}
             color="#F1F5F9"
             textColor="#64748B"
           />
           <FilterTab
+            icon="alert-circle-outline"
             label="Nguy hiểm"
-            count={3}
-            active={filter === "Nguy hiểm"}
-            onPress={() => setFilter("Nguy hiểm")}
+            count={alerts.filter((a) => a.level === "Nguy hiểm").length}
+            active={statusFilter === "Nguy hiểm"}
+            onPress={() => setStatusFilter("Nguy hiểm")}
             color="#FEE2E2"
             textColor={theme.colors.danger}
           />
           <FilterTab
+            icon="warning-outline"
             label="Cảnh báo"
-            count={1}
-            active={filter === "Cảnh báo"}
-            onPress={() => setFilter("Cảnh báo")}
+            count={alerts.filter((a) => a.level === "Cảnh báo").length}
+            active={statusFilter === "Cảnh báo"}
+            onPress={() => setStatusFilter("Cảnh báo")}
             color="#FEF3C7"
             textColor={theme.colors.warning}
           />
           <FilterTab
+            icon="sync-outline"
             label="Đang xử lý"
-            count={4}
-            active={filter === "Đang xử lý"}
-            onPress={() => setFilter("Đang xử lý")}
+            count={alerts.filter((a) => a.status === "Đang xử lý").length}
+            active={statusFilter === "Đang xử lý"}
+            onPress={() => setStatusFilter("Đang xử lý")}
             color="#DBEAFE"
             textColor={theme.colors.primary}
           />
         </ScrollView>
       </View>
 
-      {/* 4. Hiển thị danh sách đã được lọc */}
-      <ScrollView
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        {filteredAlerts.length > 0 ? (
-          filteredAlerts.map((item) => (
-            <AlertCard
-              key={item.id}
-              item={item}
-              router={router}
-              onConfirm={() => handleConfirm(item.id)}
+      {/* DANH SÁCH CẢNH BÁO */}
+      {loading ? (
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={{ marginTop: 10, color: "#64748B" }}>
+            Đang tải dữ liệu...
+          </Text>
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[theme.colors.primary]}
             />
-          ))
-        ) : (
-          <View style={{ alignItems: "center", marginTop: 50 }}>
-            <Ionicons name="search-outline" size={60} color="#CBD5E1" />
-            <Text style={{ color: "#64748B", marginTop: 10 }}>
-              Không tìm thấy cảnh báo phù hợp
-            </Text>
-          </View>
-        )}
-      </ScrollView>
+          }
+        >
+          {filteredAlerts.length > 0 ? (
+            filteredAlerts.map((item) => (
+              <AlertCard
+                key={item.id}
+                item={item}
+                router={router}
+                onConfirm={() => handleConfirm(item.id)}
+                onResolve={() => handleResolve(item.id)}
+              />
+            ))
+          ) : (
+            <View style={{ alignItems: "center", marginTop: 50 }}>
+              <Ionicons name="search-outline" size={60} color="#CBD5E1" />
+              <Text style={{ color: "#64748B", marginTop: 10 }}>
+                Không tìm thấy cảnh báo phù hợp
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
 
-// Component Thẻ Cảnh báo
-const AlertCard = ({ item, router, onConfirm }: any) => (
-  <View
-    style={[styles.card, { borderTopColor: item.color, borderTopWidth: 4 }]}
-  >
-    <View style={styles.cardHeader}>
-      <View style={[styles.iconBox, { backgroundColor: `${item.color}15` }]}>
-        <MaterialCommunityIcons
-          name={
-            item.type === "Pump" ? "engine-outline" : "alert-circle-outline"
-          }
-          size={24}
-          color={item.color}
-        />
-      </View>
-      <View style={{ flex: 1, marginLeft: 12 }}>
-        <Text style={styles.cardTitle}>{item.title}</Text>
-        <Text style={styles.cardDesc}>{item.desc}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
-    </View>
-
-    <View style={styles.comparisonRow}>
-      <View style={styles.compItem}>
-        <Text style={styles.compLabel}>
-          Giá trị: <Text style={{ color: item.color }}>{item.value}</Text>
-        </Text>
-      </View>
-      <View style={styles.compItem}>
-        <Text style={styles.compLabel}>Ngưỡng: {item.limit}</Text>
-      </View>
-    </View>
-
-    <View style={styles.tagRow}>
-      <View style={[styles.tag, { backgroundColor: `${item.color}15` }]}>
-        <View style={[styles.dot, { backgroundColor: item.color }]} />
-        <Text style={[styles.tagText, { color: item.color }]}>
-          {item.level}
-        </Text>
-      </View>
-      {/* Hiển thị màu sắc trạng thái dựa trên tiến độ xử lý */}
-      <View
-        style={[
-          styles.tag,
-          {
-            backgroundColor:
-              item.status === "Đang xử lý" ? "#DBEAFE" : "#F1F5F9",
-          },
-        ]}
-      >
-        <Ionicons
-          name="time-outline"
-          size={12}
-          color={
-            item.status === "Đang xử lý" ? theme.colors.primary : "#64748B"
-          }
-        />
-        <Text
-          style={[
-            styles.tagTextSecondary,
-            item.status === "Đang xử lý" && { color: theme.colors.primary },
-          ]}
-        >
-          {item.status}
-        </Text>
-      </View>
-      <View style={[styles.tag, { backgroundColor: "#E0F2FE" }]}>
-        <Ionicons
-          name="business-outline"
-          size={12}
-          color={theme.colors.primary}
-        />
-        <Text
-          style={[styles.tagTextSecondary, { color: theme.colors.primary }]}
-        >
-          {item.tank}
-        </Text>
-      </View>
-    </View>
-
-    <Text style={styles.timeText}>{item.time}</Text>
-
-    {item.level === "An toàn" ? (
-      <TouchableOpacity
-        style={styles.btnResolved}
-        onPress={() => Alert.alert("Thành công", "Đã đóng sự cố này.")}
-      >
-        <Ionicons
-          name="checkmark-circle"
-          size={18}
-          color="#FFF"
-          style={{ marginRight: 8 }}
-        />
-        <Text style={styles.btnTextPrimary}>Đánh dấu đã giải quyết</Text>
-      </TouchableOpacity>
-    ) : (
-      <View style={styles.actionRow}>
-        {/* Nút Xác nhận thay đổi nội dung khi nhấn */}
-        <TouchableOpacity
-          style={[
-            styles.btnOutline,
-            item.status === "Đang xử lý" && {
-              borderColor: theme.colors.primary,
-              backgroundColor: "#EFF6FF",
-            },
-          ]}
-          onPress={onConfirm}
-          disabled={item.status === "Đang xử lý"}
-        >
-          <Text
-            style={[
-              styles.btnTextOutline,
-              item.status === "Đang xử lý" && { color: theme.colors.primary },
-            ]}
-          >
-            {item.status === "Đang xử lý" ? "Đang xử lý" : "Xác nhận"}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.btnPrimary}
-          onPress={() => {
-            router.push({
-              pathname: "/alertDetail/[id]",
-              params: { id: item.id },
-            });
-          }}
-        >
-          <Text style={styles.btnTextPrimary}>Xem chi tiết</Text>
-        </TouchableOpacity>
-      </View>
-    )}
-  </View>
-);
+// --- SUB-COMPONENTS (GIỮ NGUYÊN UI NHƯ CŨ) ---
 
 const FilterTab = ({
+  icon,
   label,
   count,
   active,
@@ -346,8 +327,17 @@ const FilterTab = ({
 }: any) => (
   <TouchableOpacity
     onPress={onPress}
-    style={[styles.filterTab, { backgroundColor: active ? textColor : color }]}
+    style={[
+      styles.filterTab,
+      { backgroundColor: active ? textColor : color, paddingLeft: 10 },
+    ]}
   >
+    <Ionicons
+      name={icon}
+      size={16}
+      color={active ? "#FFF" : textColor}
+      style={{ marginRight: 6 }}
+    />
     <Text
       style={[styles.filterTabText, { color: active ? "#FFF" : textColor }]}
     >
@@ -365,3 +355,156 @@ const FilterTab = ({
     </View>
   </TouchableOpacity>
 );
+
+const AlertCard = ({ item, router, onConfirm, onResolve }: any) => {
+  const isProcessing = item.status === "Đang xử lý";
+  const isResolved = item.status === "Đã giải quyết";
+
+  return (
+    <View
+      style={[styles.card, { borderTopColor: item.color, borderTopWidth: 4 }]}
+    >
+      <View style={styles.cardHeader}>
+        <View style={[styles.iconBox, { backgroundColor: `${item.color}15` }]}>
+          <MaterialCommunityIcons
+            name={
+              item.type === "Pump" ? "engine-outline" : "alert-circle-outline"
+            }
+            size={24}
+            color={item.color}
+          />
+        </View>
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={styles.cardTitle}>{item.title}</Text>
+          <Text style={styles.cardDesc}>{item.desc}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
+      </View>
+
+      <View style={styles.comparisonRow}>
+        <View style={styles.compItem}>
+          <Text style={styles.compLabel}>
+            Giá trị: <Text style={{ color: item.color }}>{item.value}</Text>
+          </Text>
+        </View>
+        <View style={styles.compItem}>
+          <Text style={styles.compLabel}>Ngưỡng: {item.limit}</Text>
+        </View>
+      </View>
+
+      <View style={styles.tagRow}>
+        <View style={[styles.tag, { backgroundColor: `${item.color}15` }]}>
+          <View style={[styles.dot, { backgroundColor: item.color }]} />
+          <Text style={[styles.tagText, { color: item.color }]}>
+            {item.level}
+          </Text>
+        </View>
+        <View
+          style={[
+            styles.tag,
+            { backgroundColor: isProcessing ? "#DBEAFE" : "#F1F5F9" },
+          ]}
+        >
+          <Ionicons
+            name={isProcessing ? "sync-outline" : "time-outline"}
+            size={12}
+            color={isProcessing ? theme.colors.primary : "#64748B"}
+          />
+          <Text
+            style={[
+              styles.tagTextSecondary,
+              isProcessing && {
+                color: theme.colors.primary,
+                fontWeight: "700",
+              },
+            ]}
+          >
+            {item.status}
+          </Text>
+        </View>
+        <View style={[styles.tag, { backgroundColor: "#E0F2FE" }]}>
+          <Ionicons
+            name="business-outline"
+            size={12}
+            color={theme.colors.primary}
+          />
+          <Text
+            style={[styles.tagTextSecondary, { color: theme.colors.primary }]}
+          >
+            {item.tank}
+          </Text>
+        </View>
+      </View>
+
+      <Text style={styles.timeText}>{item.time}</Text>
+
+      {item.level === "An toàn" ? (
+        <TouchableOpacity
+          style={[
+            styles.btnResolved,
+            isResolved && { backgroundColor: "#CBD5E1" },
+          ]}
+          onPress={onResolve}
+          disabled={isResolved}
+        >
+          <Ionicons
+            name={isResolved ? "checkmark-done-circle" : "checkmark-circle"}
+            size={18}
+            color="#FFF"
+            style={{ marginRight: 8 }}
+          />
+          <Text style={styles.btnTextPrimary}>
+            {isResolved ? "Đã đóng sự cố" : "Đánh dấu đã giải quyết"}
+          </Text>
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={[
+              styles.btnOutline,
+              isProcessing && {
+                borderColor: theme.colors.primary,
+                backgroundColor: "#EFF6FF",
+              },
+            ]}
+            onPress={onConfirm}
+            disabled={isProcessing}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              {isProcessing && (
+                <MaterialCommunityIcons
+                  name="progress-clock"
+                  size={16}
+                  color={theme.colors.primary}
+                  style={{ marginRight: 6 }}
+                />
+              )}
+              <Text
+                style={[
+                  styles.btnTextOutline,
+                  isProcessing && {
+                    color: theme.colors.primary,
+                    fontWeight: "700",
+                  },
+                ]}
+              >
+                {isProcessing ? "Đang xử lý" : "Xác nhận"}
+              </Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.btnPrimary}
+            onPress={() =>
+              router.push({
+                pathname: "/alertDetail/[id]",
+                params: { id: item.id },
+              })
+            }
+          >
+            <Text style={styles.btnTextPrimary}>Xem chi tiết</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+};

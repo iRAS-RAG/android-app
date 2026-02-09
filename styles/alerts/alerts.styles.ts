@@ -22,9 +22,9 @@ export const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   filterBtn: {
-    padding: 8,
-    backgroundColor: "#F8FAFC",
-    borderRadius: 8,
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: "#F1F5F9",
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
@@ -196,5 +196,36 @@ export const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontWeight: "700",
     fontSize: 13,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.2)", // Làm mờ nền khi hiện dropdown
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+    paddingTop: 80, // Vị trí khớp với nút filter
+    paddingRight: 20,
+  },
+  dropdownMenu: {
+    width: 180,
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    padding: 8,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+  },
+  menuItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  menuText: {
+    fontSize: 14,
+    color: theme.colors.textPrimary,
   },
 });
