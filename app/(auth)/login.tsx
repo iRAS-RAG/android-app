@@ -26,67 +26,53 @@ export default function LoginScreen() {
   const [secureText, setSecureText] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
-  const [error, setError] = useState(""); // State lưu trữ thông báo lỗi
+  const [error, setError] = useState("");
 
-  const isButtonDisabled = email.length === 0 || password.length === 0;
-
-  // Xử lý logic đăng nhập
-  // Xử lý logic đăng nhập
   const handleLogin = async () => {
     setIsLoading(true);
-    setError("");
+    setError(""); // Reset lỗi
 
     try {
-      // 1. Gọi service đăng nhập thực tế
       const result = await authService.login(email, password);
-
-      console.log("Login Success result:", result); // Log khi thành công
+      console.log("Login Success:", result);
 
       if (result && result.token) {
-        // 2. Cập nhật trạng thái đăng nhập vào AuthContext
         await signIn({
           accessToken: result.token.accessToken,
           refreshToken: result.token.refreshToken,
         });
-
-        // 3. Điều hướng dựa trên logic (Tabs chính)
         router.replace("/(tabs)");
+      } else {
+        // Trường hợp API trả về 200 nhưng không có token (hiếm gặp nhưng cần xử lý)
+        setError("Đăng nhập thất bại. Vui lòng thử lại.");
       }
     } catch (err: any) {
-      // --- PHẦN LOG LỖI CHI TIẾT ---
-      console.log("========= LOGIN ERROR LOG =========");
+      console.log("Login Error:", err);
+      // Bây giờ err là object axios đầy đủ, ta có thể check status
       if (err.response) {
-        // Lỗi trả về từ Server (C#) ví dụ: 400, 401, 500
-        console.log("Data:", err.response.data);
-        console.log("Status:", err.response.status);
-        console.log("Headers:", err.response.headers);
-        setError(
-          `Server error: ${err.response.status} - ${err.response.data?.message || "Lỗi hệ thống"}`,
-        );
+        if (err.response.status === 400 || err.response.status === 401) {
+          setError("Email hoặc mật khẩu không chính xác. Vui lòng thử lại.");
+        } else if (err.response.status === 500) {
+          setError("Lỗi máy chủ (500). Vui lòng thử lại sau.");
+        } else {
+          setError(err.response.data?.message || "Đăng nhập thất bại.");
+        }
       } else if (err.request) {
-        // Lỗi không kết nối được tới Server (Sai IP, sai mạng, Firewall chặn)
-        console.log("Request info:", err.request);
-        setError(
-          "Không thể kết nối tới máy chủ. Vui lòng kiểm tra Wi-Fi hoặc IP của Backend.",
-        );
+        setError("Không thể kết nối đến máy chủ. Kiểm tra mạng của bạn.");
       } else {
-        // Các lỗi thiết lập khác
-        console.log("Error Message:", err.message);
-        setError(err.message);
+        setError("Đã xảy ra lỗi không xác định.");
       }
-      console.log("Config:", err.config);
-      console.log("====================================");
     } finally {
       setIsLoading(false);
     }
   };
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.inner}
       >
-        {/* Header Section */}
         <View style={styles.header}>
           <Image
             source={require("../../assets/images/logo1.png")}
@@ -99,14 +85,13 @@ export default function LoginScreen() {
           </Text>
         </View>
 
-        {/* Form Section */}
         <View style={styles.form}>
           {/* Email Input */}
           <View
             style={[
               styles.inputWrapper,
               focusedInput === "email" && styles.inputWrapperFocused,
-              error !== "" && { borderColor: theme.colors.danger }, // Đổi viền đỏ nếu có lỗi
+              error !== "" && { borderColor: theme.colors.danger },
             ]}
           >
             <Ionicons
@@ -125,7 +110,7 @@ export default function LoginScreen() {
               value={email}
               onChangeText={(text) => {
                 setEmail(text);
-                if (error) setError(""); // Xóa lỗi khi bắt đầu nhập lại
+                if (error) setError("");
               }}
               autoCapitalize="none"
               onFocus={() => setFocusedInput("email")}
@@ -138,7 +123,7 @@ export default function LoginScreen() {
             style={[
               styles.inputWrapper,
               focusedInput === "password" && styles.inputWrapperFocused,
-              error !== "" && { borderColor: theme.colors.danger }, // Đổi viền đỏ nếu có lỗi
+              error !== "" && { borderColor: theme.colors.danger },
             ]}
           >
             <Ionicons
@@ -157,7 +142,7 @@ export default function LoginScreen() {
               value={password}
               onChangeText={(text) => {
                 setPassword(text);
-                if (error) setError(""); // Xóa lỗi khi bắt đầu nhập lại
+                if (error) setError("");
               }}
               secureTextEntry={secureText}
               onFocus={() => setFocusedInput("password")}
@@ -175,20 +160,18 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Hiển thị thông báo lỗi hệ thống */}
+          {/* === HIỂN THỊ LỖI TẠI ĐÂY === */}
           {error ? (
             <View
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                justifyContent: "flex-start",
-                marginTop: -5,
-                marginBottom: 10,
-                marginLeft: 5, // đẩy nhẹ sang trái cho đẹp
+                marginBottom: 4,
+                paddingHorizontal: 4,
               }}
             >
               <Ionicons
-                name="alert-circle-outline"
+                name="alert-circle"
                 size={16}
                 color={theme.colors.danger}
                 style={{ marginRight: 6 }}
@@ -196,15 +179,17 @@ export default function LoginScreen() {
               <Text
                 style={{
                   color: theme.colors.danger,
-                  fontSize: 12,
+                  fontSize: 13,
+                  fontWeight: "400",
+                  flex: 1, // Để text xuống dòng nếu quá dài
                 }}
               >
                 {error}
               </Text>
             </View>
           ) : null}
+          {/* =========================== */}
 
-          {/* Forgot Password Link */}
           <TouchableOpacity
             style={styles.forgotPassword}
             onPress={() => router.push("/(auth)/forgotPassword")}
@@ -212,7 +197,6 @@ export default function LoginScreen() {
             <Text style={styles.forgotText}>Quên mật khẩu?</Text>
           </TouchableOpacity>
 
-          {/* Login Button */}
           <TouchableOpacity
             style={[
               styles.loginButton,
@@ -226,14 +210,6 @@ export default function LoginScreen() {
               {isLoading ? "Đang xử lý..." : "Đăng nhập"}
             </Text>
           </TouchableOpacity>
-
-          {/* Register Link */}
-          {/* <View style={styles.footer}>
-            <Text style={styles.footerText}>Bạn chưa có tài khoản? </Text>
-            <TouchableOpacity onPress={() => router.push("/(auth)/register")}>
-              <Text style={styles.registerText}>Đăng ký ngay</Text>
-            </TouchableOpacity>
-          </View> */}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

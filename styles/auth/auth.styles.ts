@@ -130,6 +130,13 @@ export const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: theme.spacing.md,
   },
+  errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
   errorText: {
     ...theme.typography.caption,
     color: theme.colors.danger,

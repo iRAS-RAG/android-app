@@ -43,6 +43,10 @@ export default function RootLayout() {
               name="alertDetail/[id]"
               options={{ headerShown: false }}
             />
+            <Stack.Screen
+              name="maintenance/log"
+              options={{ headerShown: false }}
+            />
           </Stack>
         </LinearGradient>
       </AuthProvider>
