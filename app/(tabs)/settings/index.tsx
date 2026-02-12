@@ -59,7 +59,7 @@ export default function SettingsScreen() {
                     size={12}
                     color="#FFF"
                   />
-                  <Text style={styles.roleText}>Supervisor</Text>
+                  <Text style={styles.roleText}>Operator</Text>
                 </View>
               </View>
             </View>
@@ -105,7 +105,7 @@ export default function SettingsScreen() {
                       fontWeight: "600",
                     }}
                   >
-                    Supervisor
+                    Operator
                   </Text>
                 </View>
               }

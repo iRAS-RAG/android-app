@@ -18,7 +18,8 @@ const authService = {
       }
       return null;
     } catch (error: any) {
-      throw error.response?.data?.message || "Đăng nhập thất bại";
+      // QUAN TRỌNG: Ném toàn bộ lỗi ra ngoài để UI xử lý status code (400, 401)
+      throw error;
     }
   },
 

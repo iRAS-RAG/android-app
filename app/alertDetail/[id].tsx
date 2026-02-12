@@ -23,9 +23,14 @@ export default function AlertDetailScreen() {
 
   const handleProcessAlert = () => {
     if (currentStatus === "Đang xảy ra") {
-      // Bước 1: Đổi trạng thái sang "Đang xử lý"
+      // 1. Nếu chưa xử lý -> Đổi trạng thái & Chuyển trang
       setCurrentStatus("Đang xử lý");
-      // Bước 2: Chuyển hướng qua trang nhật ký
+      router.push({
+        pathname: "/maintenance/log",
+        params: { id: id, type: "NH3" },
+      });
+    } else {
+      // 2. Nếu đang xử lý -> Chỉ chuyển trang để tiếp tục ghi
       router.push({
         pathname: "/maintenance/log",
         params: { id: id, type: "NH3" },
@@ -38,7 +43,7 @@ export default function AlertDetailScreen() {
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons
-            name="arrow-back"
+            name="chevron-back"
             size={24}
             color={theme.colors.textPrimary}
           />
@@ -176,13 +181,9 @@ export default function AlertDetailScreen() {
         </View>
 
         {/* GHI CHÚ & HÀNH ĐỘNG */}
+        {/* ... */}
         <View style={styles.logSection}>
-          <Text style={styles.sectionLabel}>Ghi chú xử lý</Text>
-          <TextInput
-            style={styles.noteInput}
-            multiline
-            placeholder="Nhập nhật ký xử lý tại đây..."
-          />
+          {/* Nút Xem chi tiết Bể */}
           <TouchableOpacity
             style={styles.btnSecondary}
             onPress={() => router.push(`/tankDetail/A-01`)}
@@ -194,30 +195,18 @@ export default function AlertDetailScreen() {
             />
             <Text style={styles.btnSecondaryText}>Xem chi tiết Bể A-01</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.btnWarning}>
-            <Text style={styles.btnWhiteText}>
-              Gửi yêu cầu đến kỹ thuật viên
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.btnSuccess}>
-            <Text style={styles.btnWhiteText}>Đánh dấu đã xử lý</Text>
-          </TouchableOpacity>
+
+          {/* Nút Xử lý chính */}
           <TouchableOpacity
             style={[
-              currentStatus === "Đang xử lý"
-                ? styles.btnSecondary
-                : styles.btnSuccess,
-              { marginTop: 10 },
+              styles.btnSuccess, // Style chính
+              currentStatus === "Đang xử lý" && {
+                backgroundColor: theme.colors.warning,
+              }, // Đổi màu nếu đang xử lý
             ]}
             onPress={handleProcessAlert}
           >
-            <Text
-              style={
-                currentStatus === "Đang xử lý"
-                  ? styles.btnSecondaryText
-                  : styles.btnWhiteText
-              }
-            >
+            <Text style={styles.btnWhiteText}>
               {currentStatus === "Đang xử lý"
                 ? "Tiếp tục cập nhật nhật ký"
                 : "Bắt đầu xử lý & Đóng sự cố"}
