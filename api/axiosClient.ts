@@ -1,9 +1,19 @@
 import axios, { InternalAxiosRequestConfig, AxiosResponse } from "axios";
 import * as SecureStore from "expo-secure-store";
 import { STORAGE_KEYS } from "../constants/storageKeys";
-
+import { Platform } from "react-native";
+import * as Device from "expo-device";
 // LƯU Ý: Hãy chắc chắn 5000 là cổng HTTP (không phải HTTPS) của BE
-const BASE_URL = "http://192.168.1.6:5027/api";
+// const BASE_URL = "http://192.168.1.6:5027/api";
+// const BASE_URL = "http://192.168.1.18:5027/api"; // Đổi từ 1.6 thành 1.18
+
+const BASE_URL =
+  Platform.OS === "android" && !Device.isDevice
+    ? "http://10.0.2.2:5027/api" // Emulator Android
+    : "http://192.168.1.18:5027/api"; // Máy thật
+
+console.log("➡️ BASE_URL:", BASE_URL);
+console.log("📱 Physical Device:", Device.isDevice);
 
 const axiosClient = axios.create({
   baseURL: BASE_URL,

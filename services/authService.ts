@@ -1,5 +1,5 @@
-// services/authService.ts
 import authApi from "../api/authApi";
+import axiosClient from "../api/axiosClient";
 import * as SecureStore from "expo-secure-store";
 import { STORAGE_KEYS } from "../constants/storageKeys";
 
@@ -14,12 +14,31 @@ const authService = {
           STORAGE_KEYS.REFRESH_TOKEN,
           refreshToken,
         );
+
+        // Sau khi đăng nhập, lấy luôn profile để lưu cache nếu cần
+        const profile = await authService.getCurrentUserProfile();
+        if (profile) {
+          await SecureStore.setItemAsync(
+            STORAGE_KEYS.USER_DATA,
+            JSON.stringify(profile),
+          );
+        }
         return response.data;
       }
       return null;
     } catch (error: any) {
-      // QUAN TRỌNG: Ném toàn bộ lỗi ra ngoài để UI xử lý status code (400, 401)
       throw error;
+    }
+  },
+
+  // GỌI API THẬT /api/users/me
+  getCurrentUserProfile: async () => {
+    try {
+      const response = await axiosClient.get("/users/me");
+      return response.data.data; // Trả về object: { firstName, lastName, roleName... }
+    } catch (error) {
+      console.log("Lỗi lấy thông tin người dùng:", error);
+      return null;
     }
   },
 
@@ -30,6 +49,7 @@ const authService = {
     if (refreshToken) await authApi.logout(refreshToken);
     await SecureStore.deleteItemAsync(STORAGE_KEYS.ACCESS_TOKEN);
     await SecureStore.deleteItemAsync(STORAGE_KEYS.REFRESH_TOKEN);
+    await SecureStore.deleteItemAsync(STORAGE_KEYS.USER_DATA);
   },
 
   async requestPasswordReset(email: string) {
@@ -41,30 +61,23 @@ const authService = {
     }
   },
 
-  // THÊM PHƯƠNG THỨC NÀY ĐỂ XỬ LÝ LỖI TYPESCRIPT
   async resetPassword(data: {
     email: string;
-    code: string; // Đổi từ token -> code
+    code: string;
     newPassword: string;
-    confirmNewPassword: string; // Thêm trường này
+    confirmNewPassword: string;
   }) {
     try {
-      // Chuyển đổi sang đúng format object mà C# Model đang chờ
       const payload = {
         Email: data.email,
         Code: data.code,
         NewPassword: data.newPassword,
         ConfirmNewPassword: data.confirmNewPassword,
       };
-
-      console.log("===> PAYLOAD GỬI LÊN BE:", payload);
       const response = await authApi.resetPassword(payload);
       return response.data;
     } catch (error: any) {
-      console.log("===> CHI TIẾT LỖI TỪ BE:", error.response?.data);
-      throw error.response?.data?.errors
-        ? "Dữ liệu xác thực không hợp lệ."
-        : error.response?.data?.message || "Đặt lại mật khẩu thất bại.";
+      throw error.response?.data?.message || "Đặt lại mật khẩu thất bại.";
     }
   },
 };

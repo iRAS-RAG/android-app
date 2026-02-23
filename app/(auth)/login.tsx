@@ -6,6 +6,7 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import authService from "../../services/authService";
 import { useAuth } from "../../hooks/useAuth";
+import axiosClient from "../../api/axiosClient"; // Import để xem cấu hình
 import {
   Image,
   KeyboardAvoidingView,
@@ -30,40 +31,61 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     setIsLoading(true);
-    setError(""); // Reset lỗi
+    setError("");
+
+    // LOG 1: Kiểm tra cấu hình kết nối trước khi gửi
+    console.log("--- BẮT ĐẦU ĐĂNG NHẬP ---");
+    console.log("URL Cấu hình:", axiosClient.defaults.baseURL);
+    console.log("Dữ liệu gửi đi:", { email, password });
 
     try {
       const result = await authService.login(email, password);
-      console.log("Login Success:", result);
+
+      // LOG 2: Đăng nhập thành công
+      console.log("Kết quả từ Server:", result);
 
       if (result && result.token) {
         await signIn({
           accessToken: result.token.accessToken,
           refreshToken: result.token.refreshToken,
         });
+        console.log("Đã lưu Token thành công. Chuyển trang...");
         router.replace("/(tabs)");
       } else {
-        // Trường hợp API trả về 200 nhưng không có token (hiếm gặp nhưng cần xử lý)
+        console.log("Cảnh báo: Server trả về 200 nhưng không có Token");
         setError("Đăng nhập thất bại. Vui lòng thử lại.");
       }
     } catch (err: any) {
-      console.log("Login Error:", err);
-      // Bây giờ err là object axios đầy đủ, ta có thể check status
+      // LOG 3: Log toàn bộ lỗi ra Terminal để xem
+      console.log("--- LỖI ĐĂNG NHẬP CHI TIẾT ---");
+
       if (err.response) {
+        // Lỗi từ phía Server trả về (400, 401, 500...)
+        console.log("Status Code:", err.response.status);
+        console.log("Data từ Server:", err.response.data);
+
         if (err.response.status === 400 || err.response.status === 401) {
-          setError("Email hoặc mật khẩu không chính xác. Vui lòng thử lại.");
+          setError("Email hoặc mật khẩu không chính xác.");
         } else if (err.response.status === 500) {
-          setError("Lỗi máy chủ (500). Vui lòng thử lại sau.");
+          setError("Lỗi máy chủ (500).");
         } else {
           setError(err.response.data?.message || "Đăng nhập thất bại.");
         }
       } else if (err.request) {
-        setError("Không thể kết nối đến máy chủ. Kiểm tra mạng của bạn.");
+        // Lỗi không gửi được request (Sai IP, sai Port, Firewall chặn)
+        console.log("Lỗi Request (Không kết nối được):", err.request);
+        setError(
+          "Không thể kết nối đến máy chủ. Hãy kiểm tra IP: " +
+            axiosClient.defaults.baseURL,
+        );
       } else {
-        setError("Đã xảy ra lỗi không xác định.");
+        // Lỗi thiết lập code
+        console.log("Lỗi không xác định:", err.message);
+        setError("Đã xảy ra lỗi: " + err.message);
       }
     } finally {
       setIsLoading(false);
+      console.log("--- KẾT THÚC QUY TRÌNH ---");
     }
   };
 
@@ -86,7 +108,6 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.form}>
-          {/* Email Input */}
           <View
             style={[
               styles.inputWrapper,
@@ -118,7 +139,6 @@ export default function LoginScreen() {
             />
           </View>
 
-          {/* Password Input */}
           <View
             style={[
               styles.inputWrapper,
@@ -148,10 +168,7 @@ export default function LoginScreen() {
               onFocus={() => setFocusedInput("password")}
               onBlur={() => setFocusedInput(null)}
             />
-            <TouchableOpacity
-              onPress={() => setSecureText(!secureText)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
+            <TouchableOpacity onPress={() => setSecureText(!secureText)}>
               <Ionicons
                 name={secureText ? "eye-off-outline" : "eye-outline"}
                 size={22}
@@ -160,14 +177,12 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* === HIỂN THỊ LỖI TẠI ĐÂY === */}
           {error ? (
             <View
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                marginBottom: 4,
-                paddingHorizontal: 4,
+                marginBottom: 10,
               }}
             >
               <Ionicons
@@ -177,18 +192,12 @@ export default function LoginScreen() {
                 style={{ marginRight: 6 }}
               />
               <Text
-                style={{
-                  color: theme.colors.danger,
-                  fontSize: 13,
-                  fontWeight: "400",
-                  flex: 1, // Để text xuống dòng nếu quá dài
-                }}
+                style={{ color: theme.colors.danger, fontSize: 13, flex: 1 }}
               >
                 {error}
               </Text>
             </View>
           ) : null}
-          {/* =========================== */}
 
           <TouchableOpacity
             style={styles.forgotPassword}
