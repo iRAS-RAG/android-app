@@ -16,6 +16,7 @@ import {
 import { Drawer } from "react-native-drawer-layout";
 import { dashboardApi } from "@/api/dashboardApi";
 import axiosClient from "@/api/axiosClient";
+import authService from "@/services/authService"; // Import service để gọi profile
 
 const { width } = Dimensions.get("window");
 
@@ -66,13 +67,19 @@ export default function DashboardScreen() {
   // STATE DỮ LIỆU
   const [tanks, setTanks] = useState<any[]>([]);
   const [farmInfo, setFarmInfo] = useState<any>(null);
+  const [userData, setUserData] = useState<any>(null); // State lưu thông tin người dùng thật
   const [stats, setStats] = useState({ totalTanks: 0, totalAlerts: 0 });
 
   const loadDashboardData = async () => {
     try {
-      // 1. Lấy thông tin Farm từ FarmController
-      const farmRes = await axiosClient.get("/farms?page=1&pageSize=1");
+      // 1. Lấy thông tin Farm và Profile người dùng đồng thời
+      const [farmRes, userProfile] = await Promise.all([
+        axiosClient.get("/farms?page=1&pageSize=1"),
+        authService.getCurrentUserProfile(), // Gọi API thật /api/users/me
+      ]);
+
       setFarmInfo(farmRes.data.data?.[0]);
+      setUserData(userProfile); // Lưu dữ liệu user thật
 
       // 2. Lấy dữ liệu Dashboard
       const [tankRes, alertRes] = await Promise.all([
@@ -133,6 +140,16 @@ export default function DashboardScreen() {
       </View>
 
       <View style={{ padding: 20, gap: 25 }}>
+        {/* HIỂN THỊ TÊN NGƯỜI DÙNG THẬT TRONG SIDEBAR */}
+        <SidebarItem
+          icon="person-outline"
+          label="Tên kỹ thuật viên"
+          value={
+            userData
+              ? `${userData.firstName} ${userData.lastName}`
+              : "Đang tải..."
+          }
+        />
         <SidebarItem
           icon="location-outline"
           label="Địa chỉ"
@@ -206,7 +223,12 @@ export default function DashboardScreen() {
                 <Text style={styles.farmName}>
                   {farmInfo?.name || "Hệ thống RAS"}
                 </Text>
-                <Text style={styles.techName}>Kỹ thuật viên: Nguyễn Văn A</Text>
+                {/* ĐÃ THAY ĐỔI: HIỂN THỊ TÊN THẬT TỪ API */}
+                <Text style={styles.techName}>
+                  {userData
+                    ? `${userData.roleName}: ${userData.firstName} ${userData.lastName}`
+                    : "Đang tải thông tin..."}
+                </Text>
               </View>
               <TouchableOpacity style={styles.notiBtn}>
                 <Ionicons

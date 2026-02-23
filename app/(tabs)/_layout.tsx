@@ -28,15 +28,17 @@ export default function TabsLayout() {
           ),
         }}
       />
+
       <Tabs.Screen
-        name="alerts/index"
+        name="warehouse/index"
         options={{
-          title: "Cảnh báo",
+          title: "Vận hành",
           tabBarIcon: ({ color }) => (
-            <Ionicons name="warning" size={22} color={color} />
+            <Ionicons name="construct" size={22} color={color} />
           ),
         }}
       />
+
       <Tabs.Screen
         name="aiAdvisor/index" // Khớp với thư mục aiAdvisor của bạn
         options={{
@@ -64,11 +66,11 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="warehouse/index"
+        name="alerts/index"
         options={{
-          title: "Kho",
+          title: "Cảnh báo",
           tabBarIcon: ({ color }) => (
-            <Ionicons name="cube" size={22} color={color} />
+            <Ionicons name="warning" size={22} color={color} />
           ),
         }}
       />
