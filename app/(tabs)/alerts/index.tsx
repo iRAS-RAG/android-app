@@ -15,16 +15,16 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
-// Đảm bảo bạn đã tạo file alertService như hướng dẫn trước đó
+// Đảm bảo bạn đã tạo file alertService để xử lý dữ liệu
 import { alertService } from "@/services/alertService";
 
 export default function AlertsScreen() {
   const router = useRouter();
 
   // --- STATE QUẢN LÝ DỮ LIỆU & UI ---
-  const [alerts, setAlerts] = useState<any[]>([]); // Dữ liệu danh sách
-  const [loading, setLoading] = useState(true); // Trạng thái tải lần đầu
-  const [refreshing, setRefreshing] = useState(false); // Trạng thái kéo để làm mới
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // --- STATE BỘ LỌC ---
   const [searchQuery, setSearchQuery] = useState("");
@@ -36,7 +36,6 @@ export default function AlertsScreen() {
   // --- 1. GỌI API LẤY DỮ LIỆU ---
   const fetchAlerts = useCallback(async () => {
     try {
-      // Gọi service (Service này đã bao gồm logic: Thử API -> Lỗi -> Dùng Mock Data)
       const data = await alertService.getAlerts();
       setAlerts(data);
     } catch (error) {
@@ -48,32 +47,27 @@ export default function AlertsScreen() {
     }
   }, []);
 
-  // Gọi API khi màn hình vừa mở
   useEffect(() => {
     fetchAlerts();
   }, [fetchAlerts]);
 
-  // Xử lý khi người dùng kéo xuống để refresh
   const onRefresh = () => {
     setRefreshing(true);
     fetchAlerts();
   };
 
-  // --- 2. LOGIC LỌC DỮ LIỆU (CLIENT-SIDE) ---
+  // --- 2. LOGIC LỌC DỮ LIỆU ---
   const filteredAlerts = alerts.filter((item) => {
-    // Lọc theo từ khóa (Tiêu đề hoặc tên bể)
     const matchesSearch =
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.tank.toLowerCase().includes(searchQuery.toLowerCase());
 
-    // Lọc theo Tab trạng thái
     const matchesStatus =
       statusFilter === "Tất cả" ||
       (statusFilter === "Nguy hiểm" && item.level === "Nguy hiểm") ||
       (statusFilter === "Cảnh báo" && item.level === "Cảnh báo") ||
       (statusFilter === "Đang xử lý" && item.status === "Đang xử lý");
 
-    // Lọc theo thời gian (Dựa trên chuỗi string trả về từ service)
     let matchesTime = true;
     if (timeFilter === "Gần đây") matchesTime = item.time.includes("phút");
     else if (timeFilter === "Hôm nay")
@@ -84,30 +78,35 @@ export default function AlertsScreen() {
     return matchesSearch && matchesStatus && matchesTime;
   });
 
-  // --- 3. XỬ LÝ TƯƠNG TÁC (CẬP NHẬT TRẠNG THÁI) ---
+  // --- 3. XỬ LÝ TƯƠNG TÁC XÁC NHẬN ---
   const handleConfirm = async (id: string) => {
-    // Optimistic Update: Cập nhật UI ngay lập tức cho mượt
+    // Cập nhật trạng thái hiển thị ngay lập tức sang "Đang xử lý"
     setAlerts((prev) =>
       prev.map((a) => (a.id === id ? { ...a, status: "Đang xử lý" } : a)),
     );
 
-    // Gọi API update ngầm
-    await alertService.updateStatus(id, "processing");
-    Alert.alert("Thông báo", "Đã xác nhận sự cố, hệ thống đang theo dõi.");
+    try {
+      // Gọi API cập nhật trạng thái thực tế
+      await alertService.updateStatus(id, "processing");
+      Alert.alert(
+        "Thông báo",
+        "Đã xác nhận sự cố, hệ thống đang chuyển sang trạng thái theo dõi.",
+      );
+    } catch (error) {
+      console.error("Update error:", error);
+      // Nếu lỗi API, có thể gọi fetchAlerts() để đồng bộ lại dữ liệu đúng từ server
+      fetchAlerts();
+    }
   };
 
   const handleResolve = async (id: string) => {
-    // Optimistic Update
     setAlerts((prev) =>
       prev.map((a) => (a.id === id ? { ...a, status: "Đã giải quyết" } : a)),
     );
-
-    // Gọi API update ngầm
     await alertService.updateStatus(id, "resolved");
     Alert.alert("Thành công", "Đã đóng sự cố.");
   };
 
-  // --- RENDER GIAO DIỆN ---
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
       {/* HEADER & FILTERS */}
@@ -120,7 +119,6 @@ export default function AlertsScreen() {
             </Text>
           </View>
 
-          {/* DROPDOWN THỜI GIAN */}
           <TouchableOpacity
             style={[
               styles.filterBtn,
@@ -168,7 +166,6 @@ export default function AlertsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* MODAL CHỌN THỜI GIAN */}
         <Modal visible={showTimeMenu} transparent animationType="fade">
           <TouchableOpacity
             style={styles.modalOverlay}
@@ -208,7 +205,6 @@ export default function AlertsScreen() {
           </TouchableOpacity>
         </Modal>
 
-        {/* THANH TÌM KIẾM */}
         <View style={styles.searchContainer}>
           <Ionicons
             name="search-outline"
@@ -223,7 +219,6 @@ export default function AlertsScreen() {
           />
         </View>
 
-        {/* BỘ LỌC TRẠNG THÁI (TABS) */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -232,7 +227,7 @@ export default function AlertsScreen() {
           <FilterTab
             icon="layers-outline"
             label="Tổng"
-            count={alerts.length} // Đếm tổng số lượng thực tế
+            count={alerts.length}
             active={statusFilter === "Tất cả"}
             onPress={() => setStatusFilter("Tất cả")}
             color="#F1F5F9"
@@ -268,7 +263,7 @@ export default function AlertsScreen() {
         </ScrollView>
       </View>
 
-      {/* DANH SÁCH CẢNH BÁO */}
+      {/* LIST CONTENT */}
       {loading ? (
         <View
           style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
@@ -313,8 +308,6 @@ export default function AlertsScreen() {
     </SafeAreaView>
   );
 }
-
-// --- SUB-COMPONENTS (GIỮ NGUYÊN UI NHƯ CŨ) ---
 
 const FilterTab = ({
   icon,
