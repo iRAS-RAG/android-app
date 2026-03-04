@@ -190,12 +190,7 @@ export default function OperationsScreen() {
         </View>
 
         {/* FILTER TABS */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterGroup}
-          contentContainerStyle={{ paddingRight: 20 }}
-        >
+        <View style={styles.filterGroupCentered}>
           <FilterTab
             icon="restaurant-outline"
             label="Cho ăn"
@@ -206,7 +201,7 @@ export default function OperationsScreen() {
           />
 
           <FilterTab
-            icon="skull-outline"
+            icon="fish-outline"
             label="Cá chết"
             active={activeTab === "mortality"}
             onPress={() => setActiveTab("mortality")}
@@ -222,7 +217,7 @@ export default function OperationsScreen() {
             color="#F1F5F9"
             textColor="#64748B"
           />
-        </ScrollView>
+        </View>
       </View>
 
       {/* SUB TAB LỊCH SỬ */}
@@ -623,14 +618,20 @@ const styles = StyleSheet.create({
   },
 
   /* FILTER TABS */
+  filterGroupCentered: {
+    flexDirection: "row",
+    justifyContent: "space-between", // Dàn đều 3 tab sang 2 bên và giữa
+    marginTop: 14,
+    paddingHorizontal: 0, // Không cần padding nếu đã dàn đều
+  },
   filterGroup: { marginTop: 14 },
   filterTab: {
     flexDirection: "row",
     alignItems: "center",
-    marginRight: 10,
-    paddingVertical: 7,
-    paddingHorizontal: 14,
-    borderRadius: 20,
+    justifyContent: "center", // Căn giữa nội dung trong tab
+    paddingVertical: 10,
+    borderRadius: 18, // Bo góc vuông vắn hơn một chút
+    width: "32%", // Mỗi tab chiếm gần 1/3 chiều ngang để đều nhau
   },
   filterTabText: { fontWeight: "600", fontSize: 14 },
 

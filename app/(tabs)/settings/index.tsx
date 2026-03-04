@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,16 +8,36 @@ import {
   Switch,
   StyleSheet,
   Alert,
-  Image,
+  ActivityIndicator,
 } from "react-native";
 import { theme } from "@/theme";
-import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import authService from "@/services/authService"; // Import để lấy profile thật
+import { styles } from "@/styles/settings/setting.styles";
 
 export default function SettingsScreen() {
   const router = useRouter();
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
+
+  // STATE DỮ LIỆU NGƯỜI DÙNG THẬT
+  const [userData, setUserData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      try {
+        const profile = await authService.getCurrentUserProfile(); // Gọi API /users/me
+        setUserData(profile);
+      } catch (error) {
+        console.error("Lỗi tải thông tin cài đặt:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadUserProfile();
+  }, []);
 
   const handleLogout = () => {
     Alert.alert("Đăng xuất", "Bạn có chắc chắn muốn đăng xuất không?", [
@@ -25,10 +45,21 @@ export default function SettingsScreen() {
       {
         text: "Đăng xuất",
         style: "destructive",
-        onPress: () => router.replace("/(auth)/login"),
+        onPress: async () => {
+          await authService.logout(); // Xóa sạch token khi logout
+          router.replace("/(auth)/login");
+        },
       },
     ]);
   };
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -36,12 +67,12 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
       >
-        {/* A. HEADER & USER CARD */}
+        {/* A. HEADER & USER CARD - ĐÃ ĐỔI SANG DATA THẬT */}
         <View style={styles.headerContainer}>
           <Text style={styles.pageTitle}>Cài đặt</Text>
 
           <LinearGradient
-            colors={[theme.colors.primary, "#1E40AF"]} // Gradient Blue
+            colors={[theme.colors.primary, "#1E40AF"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.userCard}
@@ -51,15 +82,23 @@ export default function SettingsScreen() {
                 <Ionicons name="person" size={32} color="#FFF" />
               </View>
               <View>
-                <Text style={styles.userName}>Nguyễn Văn A</Text>
-                <Text style={styles.userEmail}>nguyenvana@aquatech.vn</Text>
+                <Text style={styles.userName}>
+                  {userData
+                    ? `${userData.firstName} ${userData.lastName}`
+                    : "Chưa cập nhật"}
+                </Text>
+                <Text style={styles.userEmail}>
+                  {userData?.email || "nguyenvana@aquatech.vn"}
+                </Text>
                 <View style={styles.roleBadge}>
                   <MaterialCommunityIcons
                     name="shield-check"
                     size={12}
                     color="#FFF"
                   />
-                  <Text style={styles.roleText}>Operator</Text>
+                  <Text style={styles.roleText}>
+                    {userData?.roleName || "User"}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -73,7 +112,7 @@ export default function SettingsScreen() {
             <SettingItem
               icon="person-outline"
               iconColor={theme.colors.primary}
-              iconBg="#E3F2FD" // Xanh nhạt
+              iconBg="#E3F2FD"
               title="Thông tin cá nhân"
               subtitle="Xem và chỉnh sửa"
               onPress={() => {}}
@@ -82,7 +121,7 @@ export default function SettingsScreen() {
             <SettingItem
               icon="lock-closed-outline"
               iconColor={theme.colors.warning}
-              iconBg="#FFF3E0" // Cam nhạt
+              iconBg="#FFF3E0"
               title="Đổi mật khẩu"
               subtitle="Cập nhật mật khẩu"
               onPress={() => {}}
@@ -91,7 +130,7 @@ export default function SettingsScreen() {
             <SettingItem
               icon="shield-checkmark-outline"
               iconColor={theme.colors.success}
-              iconBg="#E8F5E9" // Xanh lá nhạt
+              iconBg="#E8F5E9"
               title="Vai trò"
               subtitle="Không thể thay đổi"
               rightElement={
@@ -105,7 +144,7 @@ export default function SettingsScreen() {
                       fontWeight: "600",
                     }}
                   >
-                    Operator
+                    {userData?.roleName || "Operator"}
                   </Text>
                 </View>
               }
@@ -114,7 +153,7 @@ export default function SettingsScreen() {
             <SettingItem
               icon="log-out-outline"
               iconColor={theme.colors.danger}
-              iconBg="#FFEBEE" // Đỏ nhạt
+              iconBg="#FFEBEE"
               title="Đăng xuất"
               titleStyle={{ color: theme.colors.danger }}
               isDestructive
@@ -195,7 +234,7 @@ export default function SettingsScreen() {
             <SettingItem
               icon="call-outline"
               iconColor={theme.colors.secondary}
-              iconBg="#E0F2F1" // Xanh ngọc nhạt
+              iconBg="#E0F2F1"
               title="Liên hệ Hỗ trợ"
               subtitle="support@aquatech.vn"
               onPress={() => {}}
@@ -204,7 +243,7 @@ export default function SettingsScreen() {
             <SettingItem
               icon="information-circle-outline"
               iconColor={theme.colors.textSecondary}
-              iconBg="#F3F4F6" // Xám nhạt
+              iconBg="#F3F4F6"
               title="Phiên bản ứng dụng"
               subtitle="Build info"
               hideArrow
@@ -220,7 +259,7 @@ export default function SettingsScreen() {
             <SettingItem
               icon="document-text-outline"
               iconColor="#F59E0B"
-              iconBg="#FEF3C7" // Vàng nhạt
+              iconBg="#FEF3C7"
               title="Điều khoản & Chính sách"
               subtitle="Terms of Service & Privacy"
               onPress={() => {}}
@@ -232,7 +271,7 @@ export default function SettingsScreen() {
   );
 }
 
-// ------------------- COMPONENTS CON & STYLES ------------------- //
+// ------------------- COMPONENTS CON & STYLES (GIỮ NGUYÊN) ------------------- //
 
 const SettingItem = ({
   icon,
@@ -275,150 +314,3 @@ const SettingItem = ({
 );
 
 const Divider = () => <View style={styles.divider} />;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8FAFC", // Nền xám rất nhạt cho toàn trang
-  },
-  headerContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    marginBottom: 20,
-    backgroundColor: "#FFF",
-    paddingBottom: 20,
-  },
-  pageTitle: {
-    ...theme.typography.h2,
-    color: theme.colors.textPrimary,
-    marginBottom: 20,
-  },
-  userCard: {
-    padding: 20,
-    borderRadius: 16,
-    elevation: 4,
-    shadowColor: theme.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  userInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  avatarContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 15,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
-  },
-  userName: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#FFF",
-    marginBottom: 4,
-  },
-  userEmail: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.9)",
-    marginBottom: 8,
-  },
-  roleBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.2)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: "flex-start",
-  },
-  roleText: {
-    color: "#FFF",
-    fontSize: 11,
-    fontWeight: "600",
-    marginLeft: 4,
-  },
-  section: {
-    marginBottom: 24,
-    paddingHorizontal: 20,
-  },
-  sectionHeader: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: theme.colors.textSecondary,
-    marginBottom: 10,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  cardContainer: {
-    backgroundColor: "#FFF",
-    borderRadius: 16,
-    overflow: "hidden", // Để bo góc hoạt động với các item con
-    borderWidth: 1,
-    borderColor: "#F1F5F9",
-  },
-  itemContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-  },
-  itemLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  iconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  itemTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: theme.colors.textPrimary,
-    marginBottom: 2,
-  },
-  itemSubtitle: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-  },
-  itemRight: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#F1F5F9",
-    marginLeft: 68, // Canh lề để không cắt icon
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  // Style riêng cho mục Camera
-  cameraItemContainer: {
-    backgroundColor: "#FFF",
-  },
-  permissionStatusRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    paddingLeft: 68, // Thụt vào thẳng hàng với text trên
-    marginTop: -8,
-  },
-  permissionLabel: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-  },
-});

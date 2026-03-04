@@ -8,11 +8,13 @@ import {
   SafeAreaView,
   ScrollView,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { LineChart } from "react-native-chart-kit";
+import AlertChart from "@/components/alerts/AlertChart";
+import MetaItem from "@/components/alerts/MetaItem";
+import CompBox from "@/components/alerts/CompBox";
+import StepItem from "@/components/alerts/StepItem";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -22,24 +24,19 @@ export default function AlertDetailScreen() {
   const [currentStatus, setCurrentStatus] = useState("Đang xảy ra");
 
   const handleProcessAlert = () => {
+    router.push({
+      pathname: "/maintenance/log",
+      params: { id: id, type: "NH3" },
+    });
+
     if (currentStatus === "Đang xảy ra") {
-      // 1. Nếu chưa xử lý -> Đổi trạng thái & Chuyển trang
       setCurrentStatus("Đang xử lý");
-      router.push({
-        pathname: "/maintenance/log",
-        params: { id: id, type: "NH3" },
-      });
-    } else {
-      // 2. Nếu đang xử lý -> Chỉ chuyển trang để tiếp tục ghi
-      router.push({
-        pathname: "/maintenance/log",
-        params: { id: id, type: "NH3" },
-      });
     }
   };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
-      {/* HEADER ĐIỀU HƯỚNG */}
+      {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons
@@ -48,7 +45,9 @@ export default function AlertDetailScreen() {
             color={theme.colors.textPrimary}
           />
         </TouchableOpacity>
+
         <Text style={styles.headerTitle}>Chi tiết cảnh báo</Text>
+
         <TouchableOpacity>
           <Ionicons
             name="share-outline"
@@ -62,7 +61,7 @@ export default function AlertDetailScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
       >
-        {/* Ô THÔNG TIN SỰ CỐ KHẨN CẤP */}
+        {/* THÔNG TIN SỰ CỐ */}
         <View style={styles.emergencyCard}>
           <View style={styles.emergencyHeader}>
             <View style={styles.iconCircle}>
@@ -72,6 +71,7 @@ export default function AlertDetailScreen() {
                 color={theme.colors.danger}
               />
             </View>
+
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.alertTitle}>
                 Mức NH₃ vượt ngưỡng nguy hiểm
@@ -81,9 +81,11 @@ export default function AlertDetailScreen() {
               </View>
             </View>
           </View>
+
           <Text style={styles.alertDesc}>
             Nồng độ amoniac cao có thể gây độc cho cá trong thời gian ngắn.
           </Text>
+
           <View style={styles.metaRow}>
             <MetaItem icon="business-outline" label="Bể A-01" />
             <MetaItem icon="time-outline" label="2 phút trước" />
@@ -91,13 +93,15 @@ export default function AlertDetailScreen() {
           </View>
         </View>
 
-        {/* DỮ LIỆU THỰC TẾ & ĐỐI CHIẾU */}
+        {/* GIÁ TRỊ HIỆN TẠI */}
         <View style={styles.currentValueCard}>
           <Text style={styles.sectionLabel}>Giá trị hiện tại</Text>
+
           <View style={styles.mainValueContainer}>
             <Text style={styles.currentValueText}>
               0.35 <Text style={{ fontSize: 18 }}>mg/L</Text>
             </Text>
+
             <View style={styles.trendingRow}>
               <Ionicons
                 name="trending-up"
@@ -115,6 +119,7 @@ export default function AlertDetailScreen() {
               </Text>
             </View>
           </View>
+
           <View style={styles.comparisonGrid}>
             <CompBox
               label="Tối ưu"
@@ -134,23 +139,10 @@ export default function AlertDetailScreen() {
           </View>
         </View>
 
-        {/* BIỂU ĐỒ BIẾN ĐỘNG 24H */}
-        <View style={styles.chartCard}>
-          <Text style={styles.sectionLabel}>Biến động 24 giờ</Text>
-          <LineChart
-            data={{
-              labels: ["00:00", "06:00", "12:00", "18:00", "Hiện tại"],
-              datasets: [{ data: [0.1, 0.15, 0.22, 0.32, 0.35] }],
-            }}
-            width={screenWidth - 70}
-            height={180}
-            chartConfig={chartConfig}
-            bezier
-            style={{ marginVertical: 10, borderRadius: 16 }}
-          />
-        </View>
+        {/* BIỂU ĐỒ */}
+        <AlertChart />
 
-        {/* HƯỚNG DẪN XỬ LÝ TỪ AI (RAG) */}
+        {/* HƯỚNG DẪN AI */}
         <View style={styles.aiSection}>
           <View style={styles.aiHeader}>
             <MaterialCommunityIcons
@@ -160,18 +152,21 @@ export default function AlertDetailScreen() {
             />
             <Text style={styles.aiTitle}>Hướng dẫn xử lý từ AI</Text>
           </View>
+
           <StepItem
             num="1"
             title="Tăng cường sục khí ngay lập tức"
             desc="Tăng 30% để giảm NH₃ qua quá trình nitrat hóa"
             priority="Ưu tiên cao"
           />
+
           <StepItem
             num="2"
             title="Giảm lượng thức ăn 20-30%"
             desc="Tránh dư thừa chất hữu cơ tạo NH₃"
             priority="Ưu tiên cao"
           />
+
           <StepItem
             num="3"
             title="Thay nước 15-20%"
@@ -180,10 +175,8 @@ export default function AlertDetailScreen() {
           />
         </View>
 
-        {/* GHI CHÚ & HÀNH ĐỘNG */}
-        {/* ... */}
+        {/* ACTION */}
         <View style={styles.logSection}>
-          {/* Nút Xem chi tiết Bể */}
           <TouchableOpacity
             style={styles.btnSecondary}
             onPress={() => router.push(`/tankDetail/A-01`)}
@@ -196,13 +189,12 @@ export default function AlertDetailScreen() {
             <Text style={styles.btnSecondaryText}>Xem chi tiết Bể A-01</Text>
           </TouchableOpacity>
 
-          {/* Nút Xử lý chính */}
           <TouchableOpacity
             style={[
-              styles.btnSuccess, // Style chính
+              styles.btnSuccess,
               currentStatus === "Đang xử lý" && {
                 backgroundColor: theme.colors.warning,
-              }, // Đổi màu nếu đang xử lý
+              },
             ]}
             onPress={handleProcessAlert}
           >
@@ -217,41 +209,3 @@ export default function AlertDetailScreen() {
     </SafeAreaView>
   );
 }
-
-// COMPONENTS CON
-const MetaItem = ({ icon, label }: any) => (
-  <View style={styles.metaItem}>
-    <Ionicons name={icon} size={14} color="#64748B" />
-    <Text style={styles.metaLabel}>{label}</Text>
-  </View>
-);
-
-const CompBox = ({ label, value, color }: any) => (
-  <View style={[styles.compBox, { backgroundColor: `${color}10` }]}>
-    <Text style={styles.compLabel}>{label}</Text>
-    <Text style={[styles.compValue, { color }]}>{value}</Text>
-  </View>
-);
-
-const StepItem = ({ num, title, desc, priority }: any) => (
-  <View style={styles.stepCard}>
-    <View style={styles.stepNumber}>
-      <Text style={styles.stepNumText}>{num}</Text>
-    </View>
-    <View style={{ flex: 1, marginLeft: 12 }}>
-      <Text style={styles.stepTitle}>{title}</Text>
-      <Text style={styles.stepDesc}>{desc}</Text>
-      <View style={styles.priorityTag}>
-        <Text style={styles.priorityText}>{priority}</Text>
-      </View>
-    </View>
-  </View>
-);
-
-const chartConfig = {
-  backgroundGradientFrom: "#FFF",
-  backgroundGradientTo: "#FFF",
-  color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
-  strokeWidth: 2,
-  decimalPlaces: 2,
-};

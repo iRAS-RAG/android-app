@@ -17,8 +17,7 @@ import { tankDetailService } from "@/services/tankDetailService";
 
 const screenWidth = Dimensions.get("window").width;
 
-// --- CÁC COMPONENT PHỤ ---
-
+// --- CÁC COMPONENT PHỤ (Giữ nguyên) ---
 const MetricCard = ({ label, value, unit, time, color, icon }: any) => (
   <View
     style={[styles.metricCard, { borderLeftColor: color, borderLeftWidth: 4 }]}
@@ -46,9 +45,7 @@ const ThresholdBox = ({ label, value, color }: any) => (
     >
       {label}
     </Text>
-    <Text style={{ fontSize: 12, fontWeight: "700", color: color }}>
-      {value}
-    </Text>
+    <Text style={{ fontSize: 12, fontWeight: "700", color }}>{value}</Text>
   </View>
 );
 
@@ -86,9 +83,8 @@ const ProgressItem = ({ label, value, color }: any) => (
 );
 
 const PumpCard = ({ device, statusColor }: any) => {
-  // Mock dữ liệu vận hành nếu Backend chưa trả về các trường kỹ thuật chi tiết
   const displayData = {
-    name: device?.name || "Máy bơm #01",
+    name: device?.name || "Máy bơm",
     status:
       device?.status === "Active" ? "Hoạt động bình thường" : "Mất kết nối",
     rotationSpeed: device?.rotationSpeed || "1450",
@@ -144,7 +140,6 @@ const PumpCard = ({ device, statusColor }: any) => {
 };
 
 // --- MÀN HÌNH CHÍNH ---
-
 export default function TankDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -159,7 +154,6 @@ export default function TankDetailScreen() {
 
   const loadData = async () => {
     try {
-      // Kết nối API thật thông qua service (kèm Mock cho các phần chưa có API)
       const res = await tankDetailService.getTankFullDetails(id as string);
       setData(res);
     } catch (error) {
@@ -178,7 +172,6 @@ export default function TankDetailScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
-      {/* Header - Sử dụng dữ liệu THẬT từ FishTankController */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color="#334155" />
@@ -196,7 +189,7 @@ export default function TankDetailScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 30 }}
       >
-        {/* 1. Thông số cảm biến - Hiện đang sử dụng MOCK data */}
+        {/* 1. Thông số cảm biến */}
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionLabel}>Thông số cảm biến</Text>
           <ScrollView
@@ -204,13 +197,13 @@ export default function TankDetailScreen() {
             showsHorizontalScrollIndicator={false}
             style={styles.metricRow}
           >
-            {data?.metrics.map((m: any, idx: number) => (
+            {data?.metrics?.map((m: any, idx: number) => (
               <MetricCard key={idx} {...m} />
             ))}
           </ScrollView>
         </View>
 
-        {/* 2. Biểu đồ xu hướng pH & Ngưỡng an toàn - Hiện đang sử dụng MOCK data */}
+        {/* 2. Biểu đồ xu hướng pH */}
         <View style={styles.chartCard}>
           <View style={styles.chartHeader}>
             <Text style={styles.chartTitle}>Độ pH - 24 giờ qua</Text>
@@ -232,23 +225,39 @@ export default function TankDetailScreen() {
             </View>
           </View>
 
-          <LineChart
-            data={data?.chartData}
-            width={screenWidth - 40}
-            height={180}
-            chartConfig={{
-              backgroundGradientFrom: "#FFF",
-              backgroundGradientTo: "#FFF",
-              color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-              strokeWidth: 2,
-              decimalPlaces: 1,
-              propsForDots: { r: "4", strokeWidth: "2", stroke: "#3B82F6" },
-            }}
-            bezier
-            style={{ borderRadius: 16, marginTop: 15, paddingRight: 40 }}
-          />
+          {/* SỬA LỖI TẠI ĐÂY: Chỉ render biểu đồ khi chartData đã sẵn sàng và có nhãn */}
+          {data?.chartData &&
+          data.chartData.labels &&
+          data.chartData.labels.length > 0 ? (
+            <LineChart
+              data={data.chartData}
+              width={screenWidth - 40}
+              height={180}
+              chartConfig={{
+                backgroundGradientFrom: "#FFF",
+                backgroundGradientTo: "#FFF",
+                color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+                strokeWidth: 2,
+                decimalPlaces: 1,
+                propsForDots: { r: "4", strokeWidth: "2", stroke: "#3B82F6" },
+              }}
+              bezier
+              style={{ borderRadius: 16, marginTop: 15, paddingRight: 40 }}
+            />
+          ) : (
+            <View
+              style={{
+                height: 180,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: theme.colors.textSecondary }}>
+                Đang tải biểu đồ...
+              </Text>
+            </View>
+          )}
 
-          {/* HIỂN THỊ 3 NGƯỠNG DƯỚI BIỂU ĐỒ - Mock từ thresholds service */}
           <View
             style={{
               flexDirection: "row",
@@ -277,10 +286,9 @@ export default function TankDetailScreen() {
           </View>
         </View>
 
-        {/* 3. Trạng thái các thiết bị điều khiển */}
+        {/* 3. Trạng thái thiết bị */}
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionLabel}>Trạng thái thiết bị</Text>
-
           {data?.pumps?.map((device: any) => (
             <PumpCard
               key={device.id}
@@ -290,18 +298,16 @@ export default function TankDetailScreen() {
               }
             />
           ))}
-
-          {/* Nếu không có thiết bị nào */}
-          {data?.pumps?.length === 0 && (
+          {(!data?.pumps || data?.pumps?.length === 0) && (
             <Text
               style={{ textAlign: "center", color: theme.colors.textSecondary }}
             >
-              Không tìm thấy thiết bị điều khiển cho bể này.
+              Không tìm thấy thiết bị cho bể này.
             </Text>
           )}
         </View>
 
-        {/* 4. Chẩn đoán AI - Logic xử lý sẽ bổ sung sau */}
+        {/* 4. Chẩn đoán AI */}
         <TouchableOpacity style={styles.aiButton}>
           <MaterialCommunityIcons name="auto-fix" size={20} color="#FFF" />
           <View style={{ marginLeft: 10 }}>

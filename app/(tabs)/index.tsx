@@ -1,6 +1,6 @@
 import { styles } from "@/styles/dashboard/dashboard.styles";
 import { theme } from "@/theme";
-import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState, useEffect } from "react";
 import {
@@ -12,49 +12,21 @@ import {
   ActivityIndicator,
   RefreshControl,
   Dimensions,
+  TextInput,
+  StatusBar,
 } from "react-native";
 import { Drawer } from "react-native-drawer-layout";
 import { dashboardApi } from "@/api/dashboardApi";
 import axiosClient from "@/api/axiosClient";
-import authService from "@/services/authService"; // Import service để gọi profile
+import authService from "@/services/authService";
 
 const { width } = Dimensions.get("window");
 
-// DỮ LIỆU GIẢ LẬP CHO CÁC PHẦN CHƯA CÓ API SENSOR CHI TIẾT
+// Dữ liệu mẫu cho các chỉ số bể (Có thể thay thế bằng dữ liệu thực từ API)
 const MOCK_TEMPLATE = {
   type: "Cá Rô Phi",
-  englishName: "Tilapia",
   volume: "50m³",
   count: "1,200 con",
-  temp: 28.5,
-  ph: 7.2,
-  do: 5.8,
-  sensors: [
-    {
-      label: "Nhiệt độ",
-      value: "28.5",
-      unit: "°C",
-      time: "2 phút trước",
-      icon: "thermometer",
-      color: theme.colors.danger,
-    },
-    {
-      label: "pH",
-      value: "7.2",
-      unit: "pH",
-      time: "1 phút trước",
-      icon: "droplet",
-      color: theme.colors.primary,
-    },
-    {
-      label: "Oxy hòa tan",
-      value: "6.8",
-      unit: "mg/L",
-      time: "5 phút trước",
-      icon: "wind",
-      color: theme.colors.success,
-    },
-  ],
 };
 
 export default function DashboardScreen() {
@@ -62,28 +34,30 @@ export default function DashboardScreen() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeSensor, setActiveSensor] = useState(0);
 
-  // STATE DỮ LIỆU
+  // Quản lý danh sách bể và tìm kiếm
   const [tanks, setTanks] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showFullList, setShowFullList] = useState(false);
+
   const [farmInfo, setFarmInfo] = useState<any>(null);
-  const [userData, setUserData] = useState<any>(null); // State lưu thông tin người dùng thật
+  const [userData, setUserData] = useState<any>(null);
   const [stats, setStats] = useState({ totalTanks: 0, totalAlerts: 0 });
 
   const loadDashboardData = async () => {
     try {
-      // 1. Lấy thông tin Farm và Profile người dùng đồng thời
+      // Lấy thông tin trang trại và người dùng
       const [farmRes, userProfile] = await Promise.all([
         axiosClient.get("/farms?page=1&pageSize=1"),
-        authService.getCurrentUserProfile(), // Gọi API thật /api/users/me
+        authService.getCurrentUserProfile(),
       ]);
 
       setFarmInfo(farmRes.data.data?.[0]);
-      setUserData(userProfile); // Lưu dữ liệu user thật
+      setUserData(userProfile);
 
-      // 2. Lấy dữ liệu Dashboard
+      // Lấy danh sách bể nuôi và cảnh báo
       const [tankRes, alertRes] = await Promise.all([
-        dashboardApi.getFishTanks(1, 10),
+        dashboardApi.getFishTanks(1, 20),
         dashboardApi.getAlerts(1, 1),
       ]);
 
@@ -104,9 +78,17 @@ export default function DashboardScreen() {
     loadDashboardData();
   }, []);
 
-  // NỘI DUNG SIDEBAR (DRAWER)
+  // Logic lọc tìm kiếm
+  const filteredTanks = tanks.filter((tank) =>
+    tank.name.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
+  const displayedTanks = showFullList
+    ? filteredTanks
+    : filteredTanks.slice(0, 3);
+
   const renderDrawerContent = () => (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFF" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.white }}>
       <View
         style={{
           padding: 20,
@@ -124,26 +106,20 @@ export default function DashboardScreen() {
             alignItems: "center",
           }}
         >
-          <MaterialCommunityIcons name="home-modern" size={30} color="#FFF" />
+          <MaterialCommunityIcons
+            name="home-modern"
+            size={30}
+            color={theme.colors.white}
+          />
         </View>
         <Text style={{ ...theme.typography.h3, marginTop: 15 }}>
           {farmInfo?.name || "Trang trại iRAS"}
         </Text>
-        <Text
-          style={{
-            ...theme.typography.caption,
-            color: theme.colors.textSecondary,
-          }}
-        >
-          Quản lý hệ thống RAS chuyên sâu
-        </Text>
       </View>
-
       <View style={{ padding: 20, gap: 25 }}>
-        {/* HIỂN THỊ TÊN NGƯỜI DÙNG THẬT TRONG SIDEBAR */}
         <SidebarItem
           icon="person-outline"
-          label="Tên kỹ thuật viên"
+          label="Kỹ thuật viên"
           value={
             userData
               ? `${userData.firstName} ${userData.lastName}`
@@ -166,28 +142,18 @@ export default function DashboardScreen() {
           value={farmInfo?.email || "Đang cập nhật..."}
         />
       </View>
-
-      <TouchableOpacity
-        style={{
-          marginTop: "auto",
-          margin: 20,
-          padding: 15,
-          backgroundColor: "#F8FAFC",
-          borderRadius: 12,
-          alignItems: "center",
-        }}
-        onPress={() => setOpen(false)}
-      >
-        <Text style={{ color: theme.colors.primary, fontWeight: "700" }}>
-          Thu nhỏ Menu
-        </Text>
-      </TouchableOpacity>
     </SafeAreaView>
   );
 
   if (loading)
     return (
-      <View style={{ flex: 1, justifyContent: "center" }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          backgroundColor: theme.colors.background,
+        }}
+      >
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
@@ -200,7 +166,10 @@ export default function DashboardScreen() {
       drawerStyle={{ width: width * 0.75 }}
       renderDrawerContent={renderDrawerContent}
     >
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
+      <StatusBar barStyle="light-content" />
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: theme.colors.background }}
+      >
         <ScrollView
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -213,33 +182,33 @@ export default function DashboardScreen() {
             />
           }
         >
-          {/* PHẦN 1: HEADER */}
+          {/* 1. HEADER SECTION  */}
           <View style={styles.headerSection}>
             <View style={styles.headerInfo}>
               <TouchableOpacity onPress={() => setOpen(true)}>
-                <Ionicons name="menu" size={28} color="#334155" />
+                <Ionicons name="menu" size={28} color={theme.colors.white} />
               </TouchableOpacity>
               <View style={{ flex: 1, marginLeft: 15 }}>
                 <Text style={styles.farmName}>
                   {farmInfo?.name || "Hệ thống RAS"}
                 </Text>
-                {/* ĐÃ THAY ĐỔI: HIỂN THỊ TÊN THẬT TỪ API */}
                 <Text style={styles.techName}>
                   {userData
-                    ? `${userData.roleName}: ${userData.firstName} ${userData.lastName}`
-                    : "Đang tải thông tin..."}
+                    ? `${userData.roleName}: ${userData.lastName} ${userData.firstName}`
+                    : "Operator"}
                 </Text>
               </View>
               <TouchableOpacity style={styles.notiBtn}>
                 <Ionicons
                   name="notifications-outline"
-                  size={26}
-                  color="#334155"
+                  size={24}
+                  color={theme.colors.white}
                 />
-                <View style={styles.notiBadge} />
+                {stats.totalAlerts > 0 && <View style={styles.notiBadge} />}
               </TouchableOpacity>
             </View>
 
+            {/* Quick Stats Cards inside Header */}
             <View style={styles.quickStatsRow}>
               <View style={styles.statCard}>
                 <Text style={styles.statLabel}>Tổng số bể</Text>
@@ -248,7 +217,7 @@ export default function DashboardScreen() {
               <View style={styles.statCard}>
                 <Text style={styles.statLabel}>Cảnh báo</Text>
                 <Text
-                  style={[styles.statValue, { color: theme.colors.danger }]}
+                  style={[styles.statValue, { color: theme.colors.warning }]}
                 >
                   {stats.totalAlerts}
                 </Text>
@@ -256,102 +225,99 @@ export default function DashboardScreen() {
             </View>
           </View>
 
-          {/* PHẦN 2: CẢM BIẾN (MOCK) */}
-          <View style={styles.sensorContainer}>
-            <Text style={styles.sectionTitle}>Cảm biến theo dõi</Text>
-            <ScrollView
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onScroll={(e) => {
-                const slide = Math.ceil(
-                  e.nativeEvent.contentOffset.x /
-                    e.nativeEvent.layoutMeasurement.width,
-                );
-                if (slide !== activeSensor) setActiveSensor(slide);
-              }}
-            >
-              {MOCK_TEMPLATE.sensors.map((item, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.sensorCard,
-                    { borderLeftColor: item.color, borderLeftWidth: 4 },
-                  ]}
-                >
-                  <Feather
-                    name={item.icon as any}
-                    size={20}
-                    color={item.color}
-                  />
-                  <Text style={styles.sensorLabel}>{item.label}</Text>
-                  <View
-                    style={{ flexDirection: "row", alignItems: "baseline" }}
-                  >
-                    <Text style={[styles.sensorValue, { color: item.color }]}>
-                      {item.value}
-                    </Text>
-                    <Text style={styles.sensorUnit}> {item.unit}</Text>
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
+          {/* 2. FLOATING SEARCH BAR */}
+          <View style={styles.searchContainer}>
+            <View style={styles.searchBox}>
+              <Ionicons
+                name="search-outline"
+                size={20}
+                color={theme.colors.textSecondary}
+              />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Tìm kiếm bể nuôi..."
+                placeholderTextColor={theme.colors.textSecondary}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </View>
           </View>
 
-          {/* PHẦN 3: DANH SÁCH BỂ */}
+          {/* 3. TANK LIST SECTION */}
           <View style={styles.tankContainer}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Danh sách bể nuôi</Text>
-              <TouchableOpacity>
-                <Text style={styles.viewAll}>Xem tất cả</Text>
-              </TouchableOpacity>
+              {filteredTanks.length > 3 && (
+                <TouchableOpacity
+                  onPress={() => setShowFullList(!showFullList)}
+                >
+                  <Text style={styles.viewAll}>
+                    {showFullList ? "Thu gọn" : "Xem tất cả"}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
 
-            {tanks.map((tank) => (
-              <View key={tank.id} style={styles.tankCard}>
-                <View style={styles.tankHeader}>
-                  <View style={styles.tankAvatar}>
-                    <MaterialCommunityIcons
-                      name="fish"
-                      size={24}
-                      color={theme.colors.primary}
-                    />
-                  </View>
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={styles.tankName}>{tank.name}</Text>
-                    <Text style={styles.fishName}>{MOCK_TEMPLATE.type}</Text>
-                  </View>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color={theme.colors.textSecondary}
-                  />
-                </View>
-
-                <View style={styles.tankStatsGrid}>
-                  <View style={styles.gridItem}>
-                    <Text style={styles.gridLabel}>Dung tích</Text>
-                    <Text style={styles.gridValue}>{MOCK_TEMPLATE.volume}</Text>
-                  </View>
-                  <View style={styles.gridItem}>
-                    <Text style={styles.gridLabel}>Số lượng</Text>
-                    <Text style={styles.gridValue}>{MOCK_TEMPLATE.count}</Text>
-                  </View>
-                </View>
-
+            {displayedTanks.length > 0 ? (
+              displayedTanks.map((tank) => (
                 <TouchableOpacity
-                  style={styles.detailBtn}
+                  key={tank.id}
+                  style={styles.tankCard}
                   onPress={() => router.push(`/tankDetail/${tank.id}`)}
                 >
-                  <Text style={styles.detailBtnText}>Xem chi tiết</Text>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={16}
-                    color={theme.colors.primary}
-                  />
+                  <View style={styles.tankHeader}>
+                    <View style={styles.tankAvatar}>
+                      <MaterialCommunityIcons
+                        name="fish"
+                        size={26}
+                        color={theme.colors.primary}
+                      />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 15 }}>
+                      <Text style={styles.tankName}>{tank.name}</Text>
+                      <Text style={styles.fishName}>{MOCK_TEMPLATE.type}</Text>
+                    </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={theme.colors.border}
+                    />
+                  </View>
+
+                  <View style={styles.tankStatsGrid}>
+                    <View style={styles.gridItem}>
+                      <Text style={styles.gridLabel}>DUNG TÍCH</Text>
+                      <Text style={styles.gridValue}>
+                        {MOCK_TEMPLATE.volume}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        width: 1,
+                        backgroundColor: "#E2E8F0",
+                        height: "100%",
+                      }}
+                    />
+                    <View style={[styles.gridItem, { paddingLeft: 15 }]}>
+                      <Text style={styles.gridLabel}>SỐ LƯỢNG</Text>
+                      <Text style={styles.gridValue}>
+                        {MOCK_TEMPLATE.count}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.detailBtn}>
+                    <Text style={styles.detailBtnText}>Chi tiết bể nuôi</Text>
+                  </View>
                 </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>
+                  Không tìm thấy kết quả phù hợp
+                </Text>
               </View>
-            ))}
+            )}
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -366,7 +332,7 @@ const SidebarItem = ({ icon, label, value }: any) => (
         width: 36,
         height: 36,
         borderRadius: 8,
-        backgroundColor: "#EFF6FF",
+        backgroundColor: theme.colors.kpi.temp.bg,
         justifyContent: "center",
         alignItems: "center",
       }}
