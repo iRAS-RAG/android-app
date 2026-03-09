@@ -4,12 +4,11 @@ import { Dimensions, Platform, StyleSheet } from "react-native";
 const { width } = Dimensions.get("window");
 
 export const styles = StyleSheet.create({
-  // HEADER PHONG CÁCH IPAY - Thu hẹp padding để gọn hơn
   headerSection: {
     paddingHorizontal: 20,
-    // Giảm paddingTop từ 60 xuống 45 (iOS) và 20 xuống 15 (Android)
+
     paddingTop: Platform.OS === "ios" ? 45 : 15,
-    paddingBottom: 35, // Giảm bớt padding bottom để thu hẹp khoảng cách với thanh search
+    paddingBottom: 35,
     backgroundColor: theme.colors.primary,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,

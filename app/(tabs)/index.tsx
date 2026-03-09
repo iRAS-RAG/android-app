@@ -1,3 +1,4 @@
+// app/(tabs)/index.tsx
 import { styles } from "@/styles/dashboard/dashboard.styles";
 import { theme } from "@/theme";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -16,18 +17,11 @@ import {
   StatusBar,
 } from "react-native";
 import { Drawer } from "react-native-drawer-layout";
-import { dashboardApi } from "@/api/dashboardApi";
-import axiosClient from "@/api/axiosClient";
+import { dashboardService } from "@/services/dashboardService";
 import authService from "@/services/authService";
+import axiosClient from "@/api/axiosClient";
 
 const { width } = Dimensions.get("window");
-
-// Dữ liệu mẫu cho các chỉ số bể (Có thể thay thế bằng dữ liệu thực từ API)
-const MOCK_TEMPLATE = {
-  type: "Cá Rô Phi",
-  volume: "50m³",
-  count: "1,200 con",
-};
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -35,18 +29,18 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Quản lý danh sách bể và tìm kiếm
+  // Quản lý dữ liệu từ API
   const [tanks, setTanks] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showFullList, setShowFullList] = useState(false);
-
   const [farmInfo, setFarmInfo] = useState<any>(null);
   const [userData, setUserData] = useState<any>(null);
   const [stats, setStats] = useState({ totalTanks: 0, totalAlerts: 0 });
 
+  // Hàm tải dữ liệu tổng hợp từ API
   const loadDashboardData = async () => {
     try {
-      // Lấy thông tin trang trại và người dùng
+      // 1. Lấy thông tin Farm (Trang trại) và Profile người dùng
       const [farmRes, userProfile] = await Promise.all([
         axiosClient.get("/farms?page=1&pageSize=1"),
         authService.getCurrentUserProfile(),
@@ -55,19 +49,16 @@ export default function DashboardScreen() {
       setFarmInfo(farmRes.data.data?.[0]);
       setUserData(userProfile);
 
-      // Lấy danh sách bể nuôi và cảnh báo
-      const [tankRes, alertRes] = await Promise.all([
-        dashboardApi.getFishTanks(1, 20),
-        dashboardApi.getAlerts(1, 1),
-      ]);
+      // 2. Lấy dữ liệu Dashboard tổng hợp (Tanks + Batches + Alerts) qua Service
+      const data = await dashboardService.getDashboardData();
 
-      setTanks(tankRes.data.data || []);
+      setTanks(data.tanks);
       setStats({
-        totalTanks: tankRes.data.meta?.totalItems || 0,
-        totalAlerts: alertRes.data.meta?.totalItems || 0,
+        totalTanks: data.totalTanks,
+        totalAlerts: data.totalAlerts,
       });
     } catch (error) {
-      console.error("Lỗi kết nối Dashboard:", error);
+      console.error("Lỗi kết nối Dashboard API:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -78,7 +69,7 @@ export default function DashboardScreen() {
     loadDashboardData();
   }, []);
 
-  // Logic lọc tìm kiếm
+  // Logic lọc tìm kiếm theo tên bể
   const filteredTanks = tanks.filter((tank) =>
     tank.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
@@ -87,6 +78,7 @@ export default function DashboardScreen() {
     ? filteredTanks
     : filteredTanks.slice(0, 3);
 
+  // Nội dung Sidebar (Drawer)
   const renderDrawerContent = () => (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.white }}>
       <View
@@ -113,18 +105,23 @@ export default function DashboardScreen() {
           />
         </View>
         <Text style={{ ...theme.typography.h3, marginTop: 15 }}>
-          {farmInfo?.name || "Trang trại iRAS"}
+          {farmInfo?.name || "Hệ thống iRAS"}
         </Text>
       </View>
       <View style={{ padding: 20, gap: 25 }}>
         <SidebarItem
           icon="person-outline"
-          label="Kỹ thuật viên"
+          label="Người vận hành"
           value={
             userData
-              ? `${userData.firstName} ${userData.lastName}`
+              ? `${userData.lastName} ${userData.firstName}`
               : "Đang tải..."
           }
+        />
+        <SidebarItem
+          icon="shield-checkmark-outline"
+          label="Vai trò"
+          value={userData?.roleName || "N/A"}
         />
         <SidebarItem
           icon="location-outline"
@@ -133,13 +130,8 @@ export default function DashboardScreen() {
         />
         <SidebarItem
           icon="call-outline"
-          label="Điện thoại"
-          value={farmInfo?.phoneNumber || "Đang cập nhật..."}
-        />
-        <SidebarItem
-          icon="mail-outline"
-          label="Email"
-          value={farmInfo?.email || "Đang cập nhật..."}
+          label="Liên hệ"
+          value={farmInfo?.phoneNumber || "N/A"}
         />
       </View>
     </SafeAreaView>
@@ -182,7 +174,7 @@ export default function DashboardScreen() {
             />
           }
         >
-          {/* 1. HEADER SECTION  */}
+          {/* 1. HEADER SECTION */}
           <View style={styles.headerSection}>
             <View style={styles.headerInfo}>
               <TouchableOpacity onPress={() => setOpen(true)}>
@@ -198,7 +190,10 @@ export default function DashboardScreen() {
                     : "Operator"}
                 </Text>
               </View>
-              <TouchableOpacity style={styles.notiBtn}>
+              <TouchableOpacity
+                style={styles.notiBtn}
+                onPress={() => router.push("/alerts")}
+              >
                 <Ionicons
                   name="notifications-outline"
                   size={24}
@@ -208,7 +203,7 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Quick Stats Cards inside Header */}
+            {/* Thống kê nhanh từ API */}
             <View style={styles.quickStatsRow}>
               <View style={styles.statCard}>
                 <Text style={styles.statLabel}>Tổng số bể</Text>
@@ -217,7 +212,15 @@ export default function DashboardScreen() {
               <View style={styles.statCard}>
                 <Text style={styles.statLabel}>Cảnh báo</Text>
                 <Text
-                  style={[styles.statValue, { color: theme.colors.warning }]}
+                  style={[
+                    styles.statValue,
+                    {
+                      color:
+                        stats.totalAlerts > 0
+                          ? theme.colors.warning
+                          : theme.colors.white,
+                    },
+                  ]}
                 >
                   {stats.totalAlerts}
                 </Text>
@@ -274,8 +277,30 @@ export default function DashboardScreen() {
                       />
                     </View>
                     <View style={{ flex: 1, marginLeft: 15 }}>
-                      <Text style={styles.tankName}>{tank.name}</Text>
-                      <Text style={styles.fishName}>{MOCK_TEMPLATE.type}</Text>
+                      <View
+                        style={{ flexDirection: "row", alignItems: "center" }}
+                      >
+                        <Text style={styles.tankName}>{tank.name}</Text>
+                        {/* Badge Trạng thái lô nuôi */}
+                        {tank.batchStatus === "HARVESTED" && (
+                          <View
+                            style={{
+                              marginLeft: 8,
+                              backgroundColor: "#E2E8F0",
+                              paddingHorizontal: 6,
+                              borderRadius: 4,
+                            }}
+                          >
+                            <Text style={{ fontSize: 9, color: "#64748B" }}>
+                              ĐÃ THU HOẠCH
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.fishName}>
+                        {tank.speciesName}{" "}
+                        {tank.stageName ? `• ${tank.stageName}` : ""}
+                      </Text>
                     </View>
                     <Ionicons
                       name="chevron-forward"
@@ -287,9 +312,7 @@ export default function DashboardScreen() {
                   <View style={styles.tankStatsGrid}>
                     <View style={styles.gridItem}>
                       <Text style={styles.gridLabel}>DUNG TÍCH</Text>
-                      <Text style={styles.gridValue}>
-                        {MOCK_TEMPLATE.volume}
-                      </Text>
+                      <Text style={styles.gridValue}>{tank.displayVolume}</Text>
                     </View>
                     <View
                       style={{
@@ -301,7 +324,7 @@ export default function DashboardScreen() {
                     <View style={[styles.gridItem, { paddingLeft: 15 }]}>
                       <Text style={styles.gridLabel}>SỐ LƯỢNG</Text>
                       <Text style={styles.gridValue}>
-                        {MOCK_TEMPLATE.count}
+                        {tank.displayQuantity}
                       </Text>
                     </View>
                   </View>
