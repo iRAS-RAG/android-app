@@ -115,4 +115,24 @@ export const operationsService = {
       return [];
     }
   },
+  // Thêm hàm lấy lịch sử cá chết
+  getMortalityHistory: async () => {
+    try {
+      const res = await operationsApi.getMortalityLogs();
+      const logs = res.data?.data?.items || res.data?.data || [];
+
+      return logs.map((log: any) => ({
+        id: log.id,
+        batchId: log.batchId,
+        tank: log.batchName || "Lô nuôi",
+        time: log.date ? new Date(log.date).toLocaleString("vi-VN") : "N/A",
+        amount: log.quantity, // Dùng chung trường amount để UI dễ render
+        unit: "con",
+        user: "KTV Hệ thống",
+      }));
+    } catch (error) {
+      console.error("Lỗi lấy lịch sử cá chết:", error);
+      return [];
+    }
+  },
 };

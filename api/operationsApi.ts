@@ -26,4 +26,16 @@ export const operationsApi = {
   postFeeding: (data: any) => {
     return axiosClient.post("/feeding-logs", data);
   },
+  // --- API CÁ CHẾT ---
+  getMortalityLogs: () => {
+    return axiosClient.get("/mortality-logs", {
+      params: { page: 1, pageSize: 100 },
+    });
+  },
+  postMortalityLog: (data: any) => {
+    return axiosClient.post("/mortality-logs", data);
+  },
+  putMortalityLog: (id: string, data: any) => {
+    return axiosClient.put(`/mortality-logs/${id}`, data);
+  },
 };

@@ -23,25 +23,6 @@ import { operationsApi } from "@/api/operationsApi";
 import { styles } from "@/styles/operations/operations.styles";
 import axiosClient from "@/api/axiosClient";
 
-const MORTALITY_DATA_MOCK = [
-  {
-    id: "m1",
-    time: "14:20 - Hôm nay",
-    tank: "Bể A-01",
-    count: "3 con",
-    note: "Sốc nhiệt",
-    user: "KTV Nam",
-  },
-  {
-    id: "m2",
-    time: "08:10 - Hôm nay",
-    tank: "Bể B-03",
-    count: "1 con",
-    note: "Trầy xước",
-    user: "KTV Nam",
-  },
-];
-
 export default function OperationsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,17 +45,24 @@ export default function OperationsScreen() {
   const [feedAmount, setFeedAmount] = useState("");
   const [deadAmount, setDeadAmount] = useState("");
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
+  const [mortalityLogs, setMortalityLogs] = useState<any[]>([]); // Thêm state lưu cá chết
+  const [editingMortalityId, setEditingMortalityId] = useState<string | null>(
+    null,
+  );
 
   const loadInitialData = async () => {
     try {
-      const [batchesData, feedsData, logsData] = await Promise.all([
-        operationsService.getAllBatchesForUI(),
-        operationsService.getFeedTypesForDropdown(),
-        operationsService.getFeedingHistory(),
-      ]);
+      const [batchesData, feedsData, logsData, mortalityData] =
+        await Promise.all([
+          operationsService.getAllBatchesForUI(),
+          operationsService.getFeedTypesForDropdown(),
+          operationsService.getFeedingHistory(),
+          operationsService.getMortalityHistory(),
+        ]);
       setBatches(batchesData);
       setFeedTypes(feedsData);
       setFeedingLogs(logsData);
+      setMortalityLogs(mortalityData); // Lưu dữ liệu cá chết vào state
     } catch (error) {
       console.error("Lỗi kết nối dữ liệu thật:", error);
     } finally {
@@ -118,11 +106,6 @@ export default function OperationsScreen() {
         return;
       }
 
-      // const payload = {
-      //   farmingBatchId: selectedBatchId,
-      //   amount: parsedAmount,
-      //   createdDate: new Date().toISOString(),
-      // };
       const payload = {
         farmingBatchId: selectedBatchId,
         feedTypeId: selectedFeedId, // <--- BỔ SUNG DÒNG NÀY
@@ -145,10 +128,53 @@ export default function OperationsScreen() {
     }
   };
 
-  const handleSaveMortality = () => {
-    Alert.alert("Thành công", "Đã ghi nhận số lượng cá chết (Local).");
-    setModalMortalityVisible(false);
-    setDeadAmount("");
+  const openMortalityModal = (log?: any) => {
+    if (log) {
+      setEditingMortalityId(log.id);
+      setSelectedBatchId(log.batchId || "");
+      setDeadAmount(log.amount?.toString() || "");
+    } else {
+      setEditingMortalityId(null);
+      setSelectedBatchId("");
+      setDeadAmount("");
+    }
+    setModalMortalityVisible(true);
+  };
+
+  // Hàm Lưu / Cập nhật cá chết
+  const handleSaveMortality = async () => {
+    if (!selectedBatchId || !deadAmount) {
+      Alert.alert("Thông báo", "Vui lòng nhập đủ các trường có dấu (*)");
+      return;
+    }
+
+    try {
+      const parsedAmount = parseInt(deadAmount, 10);
+
+      if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        Alert.alert("Lỗi", "Số lượng cá chết không hợp lệ.");
+        return;
+      }
+
+      const payload = {
+        batchId: selectedBatchId,
+        quantity: parsedAmount,
+        date: new Date().toISOString(),
+      };
+
+      if (editingMortalityId) {
+        await operationsApi.putMortalityLog(editingMortalityId, payload);
+        Alert.alert("Thành công", "Đã cập nhật số lượng cá chết.");
+      } else {
+        await operationsApi.postMortalityLog(payload);
+        Alert.alert("Thành công", "Đã ghi nhận cá chết.");
+      }
+
+      setModalMortalityVisible(false);
+      loadInitialData(); // Load lại data mới nhất
+    } catch (error: any) {
+      Alert.alert("Lỗi", "Không thể lưu dữ liệu.");
+    }
   };
 
   if (loading)
@@ -262,15 +288,17 @@ export default function OperationsScreen() {
       )}
 
       <FlatList
-        // Tab Cho ăn giờ đây hiển thị danh sách các lần cho ăn thực tế để cho phép chỉnh sửa
+        // Chuyển đổi dữ liệu tùy theo Tab đang chọn
         data={
           activeTab === "feeding"
             ? feedingLogs
-            : activeTab === "history"
-              ? historySubTab === "feed_hist"
-                ? feedingLogs
-                : MORTALITY_DATA_MOCK
-              : batches
+            : activeTab === "mortality"
+              ? mortalityLogs
+              : activeTab === "history"
+                ? historySubTab === "feed_hist"
+                  ? feedingLogs
+                  : mortalityLogs
+                : batches
         }
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
@@ -286,25 +314,29 @@ export default function OperationsScreen() {
         renderItem={({ item }) => (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
-              {/* 1. Box Icon: Cố định kích thước bên trái */}
               <View
                 style={[
                   styles.iconBox,
                   {
                     backgroundColor:
-                      activeTab === "mortality" ? "#FEE2E2" : "#DBEAFE",
+                      activeTab === "mortality" ||
+                      (activeTab === "history" && historySubTab === "dead_hist")
+                        ? "#FEE2E2"
+                        : "#DBEAFE",
                   },
                 ]}
               >
                 <MaterialCommunityIcons
                   name={
-                    activeTab === "mortality"
+                    activeTab === "mortality" ||
+                    (activeTab === "history" && historySubTab === "dead_hist")
                       ? "skull-outline"
                       : "fishbowl-outline"
                   }
                   size={24}
                   color={
-                    activeTab === "mortality"
+                    activeTab === "mortality" ||
+                    (activeTab === "history" && historySubTab === "dead_hist")
                       ? theme.colors.danger
                       : theme.colors.primary
                   }
@@ -319,37 +351,67 @@ export default function OperationsScreen() {
                   {item.time || item.crop}
                 </Text>
 
-                {/* HIỂN THỊ CHI TIẾT LƯỢNG CÁM VÀ LOẠI CÁM TRONG LỊCH SỬ */}
                 {(activeTab === "feeding" ||
-                  (activeTab === "history" &&
-                    historySubTab === "feed_hist")) && (
+                  activeTab === "mortality" ||
+                  activeTab === "history") && (
                   <View style={styles.detailContainer}>
+                    {/* Chỉ hiện Loại cám nếu là Cho ăn */}
+                    {(activeTab === "feeding" ||
+                      (activeTab === "history" &&
+                        historySubTab === "feed_hist")) && (
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Loại:</Text>
+                        <Text style={styles.detailValue} numberOfLines={1}>
+                          {item.feedName || "Thức ăn hỗn hợp"}
+                        </Text>
+                      </View>
+                    )}
                     <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Loại:</Text>
-                      <Text style={styles.detailValue} numberOfLines={1}>
-                        {item.feedName || "Thức ăn hỗn hợp"}
+                      <Text style={styles.detailLabel}>
+                        {activeTab === "mortality" ||
+                        (activeTab === "history" &&
+                          historySubTab === "dead_hist")
+                          ? "Số lượng:"
+                          : "Khối lượng:"}
                       </Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Khối lượng:</Text>
-                      <Text style={[styles.detailValue, { color: "#1E293B" }]}>
-                        {item.amount}
-                        {item.unit || "kg"}
+                      <Text
+                        style={[
+                          styles.detailValue,
+                          {
+                            color:
+                              activeTab === "mortality" ||
+                              (activeTab === "history" &&
+                                historySubTab === "dead_hist")
+                                ? theme.colors.danger
+                                : "#1E293B",
+                          },
+                        ]}
+                      >
+                        {item.amount} {item.unit || "kg"}
                       </Text>
                     </View>
                   </View>
                 )}
               </View>
 
-              {activeTab === "feeding" && (
+              {/* Hiện nút Edit cho cả Cho ăn và Cá chết */}
+              {(activeTab === "feeding" || activeTab === "mortality") && (
                 <TouchableOpacity
-                  onPress={() => openFeedingModal(item)}
+                  onPress={() =>
+                    activeTab === "feeding"
+                      ? openFeedingModal(item)
+                      : openMortalityModal(item)
+                  }
                   style={styles.editButton}
                 >
                   <Ionicons
                     name="create-outline"
                     size={22}
-                    color={theme.colors.primary}
+                    color={
+                      activeTab === "mortality"
+                        ? theme.colors.danger
+                        : theme.colors.primary
+                    }
                   />
                 </TouchableOpacity>
               )}
@@ -359,15 +421,24 @@ export default function OperationsScreen() {
       />
 
       {/* NÚT FAB (+) GÓC PHẢI LUÔN DÙNG ĐỂ THÊM MỚI BẢN GHI VÀO LỊCH SỬ */}
-      {activeTab === "feeding" && (
-        <TouchableOpacity style={styles.fab} onPress={() => openFeedingModal()}>
+      {(activeTab === "feeding" || activeTab === "mortality") && (
+        <TouchableOpacity
+          style={[
+            styles.fab,
+            activeTab === "mortality" && {
+              backgroundColor: theme.colors.danger,
+            },
+          ]}
+          onPress={() =>
+            activeTab === "feeding" ? openFeedingModal() : openMortalityModal()
+          }
+        >
           <Ionicons name="add" size={32} color="#FFF" />
         </TouchableOpacity>
       )}
 
       <Modal visible={modalFeedingVisible} animationType="slide" transparent>
         <KeyboardAvoidingView
-          // ĐIỀU CHỈNH behavior VÀ offset ĐỂ KHÔNG BỊ CHE NÚT
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 0}
           style={styles.modalOverlay}
@@ -423,6 +494,58 @@ export default function OperationsScreen() {
             >
               <Text style={styles.btnTextSave}>
                 {editingLogId ? "Cập nhật" : "Lưu vào lịch sử"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+      <Modal visible={modalMortalityVisible} animationType="slide" transparent>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editingMortalityId
+                  ? "Chỉnh sửa số lượng cá chết"
+                  : "Ghi nhận cá chết"}
+              </Text>
+              <TouchableOpacity onPress={() => setModalMortalityVisible(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.label}>Lô nuôi *</Text>
+              <Dropdown
+                style={styles.dropdown}
+                data={batches.map((b) => ({
+                  label: b.batchName || b.name,
+                  value: b.id,
+                }))}
+                labelField="label"
+                valueField="value"
+                value={selectedBatchId}
+                onChange={(item) => setSelectedBatchId(item.value)}
+                placeholder="Chọn lô nuôi..."
+              />
+              <Text style={styles.label}>Số lượng (con) *</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="numeric"
+                value={deadAmount}
+                onChangeText={setDeadAmount}
+                placeholder="Ví dụ: 3"
+                returnKeyType="done"
+              />
+              <View style={{ height: 20 }} />
+            </ScrollView>
+            <TouchableOpacity
+              style={[styles.btnSave, { backgroundColor: theme.colors.danger }]}
+              onPress={handleSaveMortality}
+            >
+              <Text style={styles.btnTextSave}>
+                {editingMortalityId ? "Cập nhật" : "Lưu hệ thống"}
               </Text>
             </TouchableOpacity>
           </View>
