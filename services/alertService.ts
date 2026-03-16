@@ -1,153 +1,140 @@
 import { alertApi } from "../api/alertApi";
 import { theme } from "@/theme";
 
-// --- 1. DỮ LIỆU GIẢ LẬP (MOCK DATA) ---
-const MOCK_ALERTS = [
-  // --- NGUY HIỂM (ĐỎ) ---
-  {
-    id: "1",
-    type: "NH3",
-    title: "Mức NH3 vượt ngưỡng tử vong",
-    message: "Nồng độ Amoniac tăng đột biến, cần thay nước gấp.",
-    currentValue: "0.85",
-    unit: "mg/L",
-    threshold: "0.50",
-    severity: "danger",
-    status: "pending",
-    tankName: "Bể A-01",
-    createdAt: new Date(Date.now() - 2 * 60000).toISOString(),
-  },
-  {
-    id: "2",
-    type: "Pump",
-    title: "Mất kết nối máy bơm sục khí",
-    message: "Không nhận được tín hiệu từ bơm #3. Kiểm tra nguồn điện.",
-    currentValue: "OFF",
-    unit: "",
-    threshold: "ON",
-    severity: "critical",
-    status: "processing",
-    tankName: "Bể A-02",
-    createdAt: new Date(Date.now() - 10 * 60000).toISOString(),
-  },
-  // --- CẢNH BÁO (VÀNG) ---
-  {
-    id: "4",
-    type: "DO",
-    title: "Oxy hòa tan thấp nhẹ",
-    message: "DO đang giảm dần vào buổi trưa, cần bật thêm quạt nước.",
-    currentValue: "3.8",
-    unit: "mg/L",
-    threshold: "4.0",
-    severity: "warning",
-    status: "pending",
-    tankName: "Bể C-12",
-    createdAt: new Date(Date.now() - 45 * 60000).toISOString(),
-  },
-  {
-    id: "5",
-    type: "Temp",
-    title: "Nhiệt độ nước tăng cao",
-    message: "Nhiệt độ mặt nước cao do nắng nóng.",
-    currentValue: "33.5",
-    unit: "°C",
-    threshold: "32.0",
-    severity: "warning",
-    status: "processing",
-    tankName: "Bể A-01",
-    createdAt: new Date(Date.now() - 60 * 60000).toISOString(),
-  },
-  // --- AN TOÀN (XANH) ---
-  {
-    id: "7",
-    type: "Temp",
-    title: "Nhiệt độ đã ổn định",
-    message: "Hệ thống làm mát đã đưa nhiệt độ về mức chuẩn.",
-    currentValue: "28.5",
-    unit: "°C",
-    threshold: "28-30",
-    severity: "safe",
-    status: "resolved",
-    tankName: "Bể A-03",
-    createdAt: new Date(Date.now() - 300 * 60000).toISOString(),
-  },
-];
-
 export const alertService = {
-  getAlerts: async (page = 1, pageSize = 10) => {
+  getAlerts: async (page = 1, pageSize = 100) => {
     try {
-      // --- CHẾ ĐỘ DEV: FORCE MOCK DATA ---
-      // Comment dòng gọi API lại để test giao diện
-      // const response = await alertApi.getAllAlerts(page, pageSize);
-      // const rawData = response.data?.data || [];
+      // Gọi API thật từ Backend
+      const response = await alertApi.getAllAlerts(page, pageSize);
 
-      console.log("⚠️ Đang sử dụng Mock Data để test UI");
-      const rawData = MOCK_ALERTS; // <--- GÁN TRỰC TIẾP Ở ĐÂY
+      // Lấy dữ liệu mảng (Swagger trả về data.data hoặc data.data.items)
+      const rawData = response.data?.data?.items || response.data?.data || [];
 
-      // Map dữ liệu sang UI Model
+      // Map dữ liệu sang format UI cần
       return rawData.map((item: any) => ({
-        id: item.id ? String(item.id) : Math.random().toString(),
-        title: item.title || "Cảnh báo hệ thống",
-        desc: item.message || item.description || "Mô tả không có sẵn",
-
-        // Logic hiển thị Giá trị
+        id: item.id,
+        title: `Cảnh báo ${item.sensorTypeName || "hệ thống"}`,
+        desc:
+          item.description ||
+          `Phát hiện chỉ số bất thường tại ${item.fishTankName || "Bể nuôi"}`,
         value:
-          item.currentValue !== undefined && item.currentValue !== null
-            ? `${item.currentValue} ${item.unit || ""}`
+          item.value !== undefined && item.value !== null
+            ? `${item.value}`
             : "N/A",
+        limit: "N/A", // Backend hiện chưa trả về giá trị Threshold cụ thể
 
-        // Logic hiển thị Ngưỡng
-        limit: item.threshold ? `${item.threshold} ${item.unit || ""}` : "N/A",
-
-        level: mapSeverity(item.severity),
+        // Map trạng thái sang UI
+        level: mapSeverity(item.status),
         status: mapStatus(item.status),
-        tank: item.tankName || "Bể chưa xác định",
-        time: formatTime(item.createdAt),
-        color: mapColor(item.severity),
-        type: item.type || "Sensor",
+        color: mapColor(item.status),
+
+        tank: item.fishTankName || "Bể chưa xác định",
+        time: formatTime(item.raisedAt || item.createdAt),
+        type: "Sensor",
       }));
     } catch (error) {
-      console.error("Lỗi service:", error);
+      console.error("Lỗi service getAlerts:", error);
       return [];
     }
   },
 
-  updateStatus: async (id: string, newStatus: string) => {
-    console.log(`Mock update status: ${id} -> ${newStatus}`);
-    return true; // Giả lập update thành công luôn
+  getAlertDetail: async (id: string) => {
+    try {
+      // Gọi API lấy chi tiết 1 cảnh báo
+      const response = await alertApi.getAlertById(id);
+      const item = response.data?.data || response.data;
+
+      if (!item) return null;
+
+      // 1. Lấy các giá trị (Gán mặc định = 0 nếu thiếu để tránh lỗi NaN)
+      const currentValue = item.value || 0;
+      const min = item.minValue ?? 0;
+      const max = item.maxValue ?? 0;
+
+      // 2. Xử lý logic tính Vượt ngưỡng và Ngưỡng an toàn
+      let limitText = `${min} - ${max}`; // Ô Ngưỡng an toàn bị vi phạm
+      let overPercentage = "0%"; // Ô Vượt ngưỡng (%)
+
+      if (currentValue > max && max > 0) {
+        limitText = `> ${max}`;
+        const percent = ((currentValue - max) / max) * 100;
+        overPercentage = `+${Math.round(percent)}%`;
+      } else if (currentValue < min && min > 0) {
+        limitText = `< ${min}`;
+        const percent = ((min - currentValue) / min) * 100;
+        overPercentage = `-${Math.round(percent)}%`;
+      }
+
+      // 3. Map toàn bộ dữ liệu chi tiết
+      return {
+        id: item.id,
+        title: `Cảnh báo ${item.sensorTypeName || "hệ thống"}`,
+        desc:
+          item.description ||
+          `Phát hiện chỉ số bất thường tại ${item.fishTankName || "Bể nuôi"}`,
+        value: currentValue.toString(),
+        limit: limitText,
+        level: mapSeverity(item.status),
+        status: mapStatus(item.status),
+        color: mapColor(item.status),
+        tank: item.fishTankName || "Bể chưa xác định",
+        time: formatTime(item.raisedAt || item.createdAt),
+        type: "Sensor",
+
+        // --- ĐỔ DỮ LIỆU ĐÃ TÍNH TOÁN RA UI (Dành cho các ô CompBox) ---
+        unit: item.unit || "mg/L",
+        optimalValue: `${min} - ${max}`,
+        safeLimit: limitText,
+        exceededPercent: overPercentage,
+
+        // --- CÁC TRƯỜNG BỔ SUNG CHO TRANG CHI TIẾT VÀ ĐIỀU HƯỚNG ---
+        batchName: item.farmingBatchName || "Chưa gán lô nuôi",
+        resolvedAt: item.resolvedAt ? formatTime(item.resolvedAt) : null,
+        sensorLogId: item.sensorLogId,
+        speciesThresholdId: item.speciesThresholdId,
+
+        // TRƯỜNG QUAN TRỌNG ĐỂ NÚT "XEM CHI TIẾT BỂ" CHUYỂN TRANG ĐÚNG:
+        fishTankId: item.fishTankId,
+      };
+    } catch (error) {
+      console.error("Lỗi lấy chi tiết cảnh báo:", error);
+      return null;
+    }
+  },
+
+  updateStatus: async (id: string, action: "processing" | "resolved") => {
+    try {
+      // Backend dùng enum: OPEN, ACKNOWLEDGED, RESOLVED
+      const backendStatus =
+        action === "processing" ? "ACKNOWLEDGED" : "RESOLVED";
+
+      // Gọi API Update (chỉ gửi trường status lên)
+      await alertApi.updateAlert(id, { status: backendStatus });
+      return true;
+    } catch (error) {
+      console.error("Lỗi updateStatus:", error);
+      throw error;
+    }
   },
 };
 
-// --- Helper Functions (Giữ nguyên) ---
-const mapSeverity = (severity: any) => {
-  if (severity === null || severity === undefined) return "Cảnh báo";
-  const s = String(severity).toLowerCase();
-  if (s.includes("danger") || s.includes("critical") || s === "2")
-    return "Nguy hiểm";
-  if (s.includes("safe") || s.includes("normal") || s === "0") return "An toàn";
-  return "Cảnh báo";
+// --- Helper Functions ---
+const mapSeverity = (status: string) => {
+  if (status === "OPEN") return "Nguy hiểm";
+  if (status === "ACKNOWLEDGED") return "Cảnh báo";
+  return "An toàn"; // RESOLVED
 };
 
-const mapStatus = (status: any) => {
-  if (status === null || status === undefined) return "Đang xảy ra";
-  const s = String(status).toLowerCase();
-  if (s.includes("process") || s.includes("pending") || s === "1")
-    return "Đang xử lý";
-  if (
-    s.includes("resolved") ||
-    s.includes("done") ||
-    s.includes("closed") ||
-    s === "2"
-  )
-    return "Đã giải quyết";
-  return "Đang xảy ra";
+const mapStatus = (status: string) => {
+  if (status === "OPEN") return "Mới";
+  if (status === "ACKNOWLEDGED") return "Đang xử lý";
+  return "Đã giải quyết"; // RESOLVED
 };
 
-const mapColor = (severity: any) => {
-  const level = mapSeverity(severity);
-  if (level === "Nguy hiểm") return theme.colors.danger;
-  if (level === "An toàn") return theme.colors.success; // Xanh lá
-  return theme.colors.warning; // Vàng
+const mapColor = (status: string) => {
+  if (status === "OPEN") return theme.colors.danger; // Đỏ
+  if (status === "ACKNOWLEDGED") return theme.colors.warning; // Vàng
+  return theme.colors.success; // Xanh lá
 };
 
 const formatTime = (isoString: string) => {
@@ -155,14 +142,7 @@ const formatTime = (isoString: string) => {
   try {
     const date = new Date(isoString);
     if (isNaN(date.getTime())) return "Vừa xong";
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return "Vừa xong";
-    if (diffMins < 60) return `${diffMins} phút trước`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours} giờ trước`;
-    return "Hôm qua";
+    return date.toLocaleString("vi-VN");
   } catch {
     return "Vừa xong";
   }

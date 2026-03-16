@@ -3,7 +3,7 @@ import axiosClient from "./axiosClient";
 export const dashboardApi = {
   // Đổi từ /fish-tanks thành /tanks để khớp với Backend [Route("api/tanks")]
   getFishTanks: (page = 1, pageSize = 10) => {
-    return axiosClient.get(`/tanks?page=${page}&pageSize=${pageSize}`);
+    return axiosClient.get(`/fish-tanks?page=${page}&pageSize=${pageSize}`);
   },
 
   // Giữ nguyên hoặc kiểm tra lại SensorController có Route là "api/sensors" không

@@ -5,13 +5,14 @@ interface SensorLatestData {
   sensorId: string;
   sensorName: string;
   sensorTypeName: string;
-  latestValue: number | null;
   unitOfMeasure: string;
-  isWarning: boolean;
-  recordedAt: string;
   measureType: string;
+  latestData: {
+    latestValue: number | null;
+    isWarning: boolean | null;
+    recordedAt: string | null;
+  } | null;
 }
-
 export const tankDetailService = {
   getTankFullDetails: async (tankId: string) => {
     try {
@@ -22,25 +23,36 @@ export const tankDetailService = {
 
       const rawMetrics: SensorLatestData[] = latestDataRes.data?.data || [];
 
-      // LỌC TRÙNG: Chỉ giữ lại cảm biến duy nhất theo tên loại (Sửa lỗi hiện 2 nhiệt độ)
-      const latestMetrics = Array.from(
-        new Map<string, SensorLatestData>(
-          rawMetrics.map((m) => [m.sensorTypeName, m]),
-        ).values(),
-      );
+      const latestMetricsMap = new Map<string, SensorLatestData>();
+      rawMetrics.forEach((m) => {
+        const typeName = m.sensorTypeName;
+        if (!latestMetricsMap.has(typeName)) {
+          latestMetricsMap.set(typeName, m); // Lưu cảm biến đầu tiên tìm thấy
+        } else {
+          // Nếu cảm biến đã lưu KHÔNG có data, nhưng cảm biến hiện tại CÓ data -> Ưu tiên lấy cái có data
+          const existing = latestMetricsMap.get(typeName);
+          const existingHasData =
+            existing?.latestData !== null && existing?.latestData !== undefined;
+          const currentHasData =
+            m.latestData !== null && m.latestData !== undefined;
+
+          if (!existingHasData && currentHasData) {
+            latestMetricsMap.set(typeName, m);
+          }
+        }
+      });
+      const latestMetrics = Array.from(latestMetricsMap.values());
 
       const firstSensorId = latestMetrics[0]?.sensorId;
 
-      // Xử lý thông tin bể (Fallback nếu bị lỗi 403 do quyền Worker)
       let tankInfo = { name: "Bể nuôi", farmName: "Hệ thống iRAS" };
       try {
         const tankRes = await tankDetailApi.getTankInfo(tankId);
         if (tankRes.data?.data) tankInfo = tankRes.data.data;
       } catch (e) {
-        console.warn("Lỗi 403: Không có quyền Supervisor để lấy TankInfo");
+        console.warn("Lỗi tải thông tin bể (có thể do quyền)");
       }
 
-      // Khởi tạo biểu đồ xu hướng dựa trên dữ liệu 'data' và 'createdAt'
       let initialChartData = null;
       if (firstSensorId) {
         try {
@@ -71,21 +83,29 @@ export const tankDetailService = {
         tankInfo,
         pumps: (devicesRes.data?.data || []).map((d: any) => ({
           ...d,
-          status: d.state, // Map 'state' từ BE sang 'status' của UI
+          status: d.state,
         })),
-        metrics: latestMetrics.map((m) => ({
-          id: m.sensorId,
-          label: m.sensorTypeName,
-          value: m.latestValue !== null ? m.latestValue.toString() : "0",
-          unit: m.unitOfMeasure,
-          color: m.isWarning ? "#EF4444" : "#3B82F6",
-          icon: m.sensorTypeName?.includes("Nhiệt độ")
-            ? "thermometer"
-            : m.sensorTypeName?.includes("pH")
-              ? "droplet"
-              : "wind",
-          time: m.recordedAt ? `${new Date(m.recordedAt).getHours()}h` : "N/A",
-        })),
+        metrics: latestMetrics.map((m) => {
+          const hasData = m.latestData !== null && m.latestData !== undefined;
+          const val = hasData ? m.latestData?.latestValue : null;
+
+          return {
+            id: m.sensorId,
+            label: m.sensorTypeName,
+            value: val !== null && val !== undefined ? val.toString() : "0",
+            unit: m.unitOfMeasure,
+            color: hasData && m.latestData?.isWarning ? "#EF4444" : "#3B82F6",
+            icon: m.sensorTypeName?.includes("Nhiệt độ")
+              ? "thermometer"
+              : m.sensorTypeName?.includes("pH")
+                ? "droplet"
+                : "wind",
+            time:
+              hasData && m.latestData?.recordedAt
+                ? `${new Date(m.latestData.recordedAt).getHours()}h`
+                : "N/A",
+          };
+        }),
         initialChartData,
       };
     } catch (error) {
