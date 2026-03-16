@@ -236,20 +236,11 @@ export default function AlertsScreen() {
           <FilterTab
             icon="alert-circle-outline"
             label="Nguy hiểm"
-            count={alerts.filter((a) => a.level === "Nguy hiểm").length}
+            count={alerts.filter((a) => a.status === "Mới").length}
             active={statusFilter === "Nguy hiểm"}
             onPress={() => setStatusFilter("Nguy hiểm")}
             color="#FEE2E2"
             textColor={theme.colors.danger}
-          />
-          <FilterTab
-            icon="warning-outline"
-            label="Cảnh báo"
-            count={alerts.filter((a) => a.level === "Cảnh báo").length}
-            active={statusFilter === "Cảnh báo"}
-            onPress={() => setStatusFilter("Cảnh báo")}
-            color="#FEF3C7"
-            textColor={theme.colors.warning}
           />
           <FilterTab
             icon="sync-outline"
@@ -257,8 +248,17 @@ export default function AlertsScreen() {
             count={alerts.filter((a) => a.status === "Đang xử lý").length}
             active={statusFilter === "Đang xử lý"}
             onPress={() => setStatusFilter("Đang xử lý")}
-            color="#DBEAFE"
-            textColor={theme.colors.primary}
+            color="#FEF3C7"
+            textColor={theme.colors.warning}
+          />
+          <FilterTab
+            icon="checkmark-circle-outline"
+            label="Đã giải quyết"
+            count={alerts.filter((a) => a.status === "Đã giải quyết").length}
+            active={statusFilter === "Đã giải quyết"}
+            onPress={() => setStatusFilter("Đã giải quyết")}
+            color="#D1FAE5"
+            textColor={theme.colors.success}
           />
         </ScrollView>
       </View>

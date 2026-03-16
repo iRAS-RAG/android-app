@@ -3,24 +3,28 @@ import axiosClient from "./axiosClient";
 export const tankDetailApi = {
   // Lấy thông tin cơ bản & camera của bể (FishTankController)
   getTankInfo: (id: string) => {
-    return axiosClient.get(`/tanks/${id}`);
+    return axiosClient.get(`/fish-tanks/${id}`);
   },
 
   // Lấy dữ liệu cảm biến MỚI NHẤT (Nhiệt độ, pH, Oxy) [Route: api/tanks/{id}/latest-data]
   getLatestData: (id: string) => {
-    return axiosClient.get(`/tanks/${id}/latest-data`);
+    return axiosClient.get(`/fish-tanks/${id}/latest-data`);
   },
-
   // Lấy lịch sử cảm biến cho biểu đồ [Route: api/sensors/{id}/logs]
+  // getSensorLogs: (sensorId: string, page = 1, pageSize = 20) => {
+  //   return axiosClient.get(`/sensors/${sensorId}/logs`, {
+  //     params: { Page: page, PageSize: pageSize },
+  //   });
+  // },
   getSensorLogs: (sensorId: string, page = 1, pageSize = 20) => {
-    return axiosClient.get(`/sensors/${sensorId}/logs`, {
+    return axiosClient.get(`/hardwares/sensors/${sensorId}/logs`, {
       params: { Page: page, PageSize: pageSize },
     });
   },
 
   // Lấy danh sách thiết bị điều khiển (HardwareController) [Route: api/hardware/control-devices]
   getControlDevices: (tankId: string) => {
-    return axiosClient.get(`/hardware/control-devices`, {
+    return axiosClient.get(`/hardwares/control-devices`, {
       params: { FishTankId: tankId }, // Truyền TankId để lọc thiết bị của bể này
     });
   },
