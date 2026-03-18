@@ -29,18 +29,16 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Quản lý dữ liệu từ API
-  const [tanks, setTanks] = useState<any[]>([]);
+  // Quản lý dữ liệu từ API (Đổi tanks -> batches)
+  const [batches, setBatches] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showFullList, setShowFullList] = useState(false);
   const [farmInfo, setFarmInfo] = useState<any>(null);
   const [userData, setUserData] = useState<any>(null);
-  const [stats, setStats] = useState({ totalTanks: 0, totalAlerts: 0 });
+  const [stats, setStats] = useState({ totalBatches: 0, totalAlerts: 0 });
 
-  // Hàm tải dữ liệu tổng hợp từ API
   const loadDashboardData = async () => {
     try {
-      // 1. Lấy thông tin Farm (Trang trại) và Profile người dùng
       const [farmRes, userProfile] = await Promise.all([
         axiosClient.get("/farms?page=1&pageSize=1"),
         authService.getCurrentUserProfile(),
@@ -49,12 +47,11 @@ export default function DashboardScreen() {
       setFarmInfo(farmRes.data.data?.[0]);
       setUserData(userProfile);
 
-      // 2. Lấy dữ liệu Dashboard tổng hợp (Tanks + Batches + Alerts) qua Service
       const data = await dashboardService.getDashboardData();
 
-      setTanks(data.tanks);
+      setBatches(data.batches);
       setStats({
-        totalTanks: data.totalTanks,
+        totalBatches: data.totalBatches,
         totalAlerts: data.totalAlerts,
       });
     } catch (error) {
@@ -69,16 +66,17 @@ export default function DashboardScreen() {
     loadDashboardData();
   }, []);
 
-  // Logic lọc tìm kiếm theo tên bể
-  const filteredTanks = tanks.filter((tank) =>
-    tank.name.toLowerCase().includes(searchQuery.toLowerCase()),
+  // Tìm kiếm theo tên lô nuôi HOẶC tên bể chứa lô đó
+  const filteredBatches = batches.filter(
+    (batch) =>
+      batch.batchName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      batch.tankName.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  const displayedTanks = showFullList
-    ? filteredTanks
-    : filteredTanks.slice(0, 3);
+  const displayedBatches = showFullList
+    ? filteredBatches
+    : filteredBatches.slice(0, 3);
 
-  // Nội dung Sidebar (Drawer)
   const renderDrawerContent = () => (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.white }}>
       <View
@@ -174,7 +172,7 @@ export default function DashboardScreen() {
             />
           }
         >
-          {/* 1. HEADER SECTION */}
+          {/* HEADER */}
           <View style={styles.headerSection}>
             <View style={styles.headerInfo}>
               <TouchableOpacity onPress={() => setOpen(true)}>
@@ -203,11 +201,10 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Thống kê nhanh từ API */}
             <View style={styles.quickStatsRow}>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Tổng số bể</Text>
-                <Text style={styles.statValue}>{stats.totalTanks}</Text>
+                <Text style={styles.statLabel}>Lô đang nuôi</Text>
+                <Text style={styles.statValue}>{stats.totalBatches}</Text>
               </View>
               <View style={styles.statCard}>
                 <Text style={styles.statLabel}>Cảnh báo</Text>
@@ -228,7 +225,7 @@ export default function DashboardScreen() {
             </View>
           </View>
 
-          {/* 2. FLOATING SEARCH BAR */}
+          {/* SEARCH */}
           <View style={styles.searchContainer}>
             <View style={styles.searchBox}>
               <Ionicons
@@ -238,7 +235,7 @@ export default function DashboardScreen() {
               />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Tìm kiếm bể nuôi..."
+                placeholder="Tìm lô nuôi, tên bể..."
                 placeholderTextColor={theme.colors.textSecondary}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -246,11 +243,11 @@ export default function DashboardScreen() {
             </View>
           </View>
 
-          {/* 3. TANK LIST SECTION */}
+          {/* BATCH LIST SECTION */}
           <View style={styles.tankContainer}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Danh sách bể nuôi</Text>
-              {filteredTanks.length > 3 && (
+              <Text style={styles.sectionTitle}>Danh sách lô nuôi</Text>
+              {filteredBatches.length > 3 && (
                 <TouchableOpacity
                   onPress={() => setShowFullList(!showFullList)}
                 >
@@ -261,12 +258,12 @@ export default function DashboardScreen() {
               )}
             </View>
 
-            {displayedTanks.length > 0 ? (
-              displayedTanks.map((tank) => (
+            {displayedBatches.length > 0 ? (
+              displayedBatches.map((batch) => (
                 <TouchableOpacity
-                  key={tank.id}
+                  key={batch.id}
                   style={styles.tankCard}
-                  onPress={() => router.push(`/tankDetail/${tank.id}`)}
+                  onPress={() => router.push(`/tankDetail/${batch.tankId}`)} // Chuyển hướng tới trang chi tiết lô nuôi
                 >
                   <View style={styles.tankHeader}>
                     <View style={styles.tankAvatar}>
@@ -280,9 +277,9 @@ export default function DashboardScreen() {
                       <View
                         style={{ flexDirection: "row", alignItems: "center" }}
                       >
-                        <Text style={styles.tankName}>{tank.name}</Text>
-                        {/* Badge Trạng thái lô nuôi */}
-                        {tank.batchStatus === "HARVESTED" && (
+                        <Text style={styles.tankName}>{batch.batchName}</Text>
+                        {batch.status ===
+                          2 /* Assuming Enum 2 is HARVESTED */ && (
                           <View
                             style={{
                               marginLeft: 8,
@@ -298,8 +295,17 @@ export default function DashboardScreen() {
                         )}
                       </View>
                       <Text style={styles.fishName}>
-                        {tank.speciesName}{" "}
-                        {tank.stageName ? `• ${tank.stageName}` : ""}
+                        {batch.speciesName}{" "}
+                        {batch.stageName ? `• ${batch.stageName}` : ""}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: theme.colors.textSecondary,
+                          marginTop: 2,
+                        }}
+                      >
+                        Bể: {batch.tankName}
                       </Text>
                     </View>
                     <Ionicons
@@ -311,8 +317,10 @@ export default function DashboardScreen() {
 
                   <View style={styles.tankStatsGrid}>
                     <View style={styles.gridItem}>
-                      <Text style={styles.gridLabel}>DUNG TÍCH</Text>
-                      <Text style={styles.gridValue}>{tank.displayVolume}</Text>
+                      <Text style={styles.gridLabel}>DUNG TÍCH BỂ</Text>
+                      <Text style={styles.gridValue}>
+                        {batch.displayVolume}
+                      </Text>
                     </View>
                     <View
                       style={{
@@ -322,23 +330,21 @@ export default function DashboardScreen() {
                       }}
                     />
                     <View style={[styles.gridItem, { paddingLeft: 15 }]}>
-                      <Text style={styles.gridLabel}>SỐ LƯỢNG</Text>
+                      <Text style={styles.gridLabel}>TỒN HIỆN TẠI</Text>
                       <Text style={styles.gridValue}>
-                        {tank.displayQuantity}
+                        {batch.displayQuantity}
                       </Text>
                     </View>
                   </View>
 
                   <View style={styles.detailBtn}>
-                    <Text style={styles.detailBtnText}>Chi tiết bể nuôi</Text>
+                    <Text style={styles.detailBtnText}>Chi tiết lô nuôi</Text>
                   </View>
                 </TouchableOpacity>
               ))
             ) : (
               <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>
-                  Không tìm thấy kết quả phù hợp
-                </Text>
+                <Text style={styles.emptyText}>Không tìm thấy lô nuôi nào</Text>
               </View>
             )}
           </View>
