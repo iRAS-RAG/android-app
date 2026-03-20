@@ -174,6 +174,39 @@ export default function DashboardScreen() {
       </View>
     );
 
+  // Thêm hàm này vào trong DashboardScreen, phía trên khối lệnh return
+  const getStatusConfig = (status: string | number) => {
+    if (!status) return { label: "N/A", bg: "#F1F5F9", text: "#64748B" };
+    const statusStr = String(status).toUpperCase().trim();
+
+    if (
+      statusStr === "1" ||
+      statusStr === "ACTIVE" ||
+      statusStr === "DANG NUOI" ||
+      statusStr === "ĐANG NUÔI"
+    ) {
+      return { label: "ĐANG NUÔI", bg: "#DCFCE7", text: "#166534" };
+    }
+    if (
+      statusStr === "2" ||
+      statusStr === "HARVESTED" ||
+      statusStr === "THU HOACH" ||
+      statusStr === "THU HOẠCH"
+    ) {
+      return { label: "ĐÃ THU HOẠCH", bg: "#F1F5F9", text: "#64748B" };
+    }
+    if (
+      statusStr === "3" ||
+      statusStr === "PAUSED" ||
+      statusStr === "TAM DUNG" ||
+      statusStr === "TẠM DỪNG"
+    ) {
+      return { label: "TẠM DỪNG", bg: "#FEF9C3", text: "#854D0E" };
+    }
+
+    return { label: "KHỞI TẠO", bg: "#E0E7FF", text: "#3730A3" };
+  };
+
   return (
     <Drawer
       open={open}
@@ -360,23 +393,47 @@ export default function DashboardScreen() {
                       </View>
                       <View style={{ flex: 1, marginLeft: 15 }}>
                         <View
-                          style={{ flexDirection: "row", alignItems: "center" }}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                            paddingRight: 5,
+                          }}
                         >
-                          <Text style={styles.tankName}>{batch.batchName}</Text>
-                          {batch.status === 2 && (
-                            <View
-                              style={{
-                                marginLeft: 8,
-                                backgroundColor: "#E2E8F0",
-                                paddingHorizontal: 6,
-                                borderRadius: 4,
-                              }}
-                            >
-                              <Text style={{ fontSize: 9, color: "#64748B" }}>
-                                ĐÃ THU HOẠCH
-                              </Text>
-                            </View>
-                          )}
+                          <Text
+                            style={[
+                              styles.tankName,
+                              { marginRight: 8, marginBottom: 2 },
+                            ]}
+                          >
+                            {batch.batchName}
+                          </Text>
+
+                          {/* Khởi tạo cấu hình trạng thái cho lô hiện tại */}
+                          {(() => {
+                            const statusConfig = getStatusConfig(batch.status);
+                            return (
+                              <View
+                                style={{
+                                  backgroundColor: statusConfig.bg,
+                                  paddingHorizontal: 6,
+                                  paddingVertical: 3,
+                                  borderRadius: 4,
+                                  marginBottom: 2,
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 9,
+                                    fontWeight: "700",
+                                    color: statusConfig.text,
+                                  }}
+                                >
+                                  {statusConfig.label}
+                                </Text>
+                              </View>
+                            );
+                          })()}
                         </View>
                         <Text style={styles.fishName}>
                           {batch.speciesName}{" "}
@@ -392,11 +449,6 @@ export default function DashboardScreen() {
                           Bể: {batch.tankName}
                         </Text>
                       </View>
-                      <Ionicons
-                        name="chevron-forward"
-                        size={20}
-                        color={theme.colors.border}
-                      />
                     </View>
 
                     <View style={styles.tankStatsGrid}>
