@@ -45,7 +45,7 @@ export default function OperationsScreen() {
   const [feedAmount, setFeedAmount] = useState("");
   const [deadAmount, setDeadAmount] = useState("");
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
-  const [mortalityLogs, setMortalityLogs] = useState<any[]>([]); // Thêm state lưu cá chết
+  const [mortalityLogs, setMortalityLogs] = useState<any[]>([]);
   const [editingMortalityId, setEditingMortalityId] = useState<string | null>(
     null,
   );
@@ -62,7 +62,7 @@ export default function OperationsScreen() {
       setBatches(batchesData);
       setFeedTypes(feedsData);
       setFeedingLogs(logsData);
-      setMortalityLogs(mortalityData); // Lưu dữ liệu cá chết vào state
+      setMortalityLogs(mortalityData);
     } catch (error) {
       console.error("Lỗi kết nối dữ liệu thật:", error);
     } finally {
@@ -97,7 +97,6 @@ export default function OperationsScreen() {
     }
 
     try {
-      // CHUẨN HÓA LẦN CUỐI TRƯỚC KHI GỬI
       const sanitizedAmount = feedAmount.replace(",", ".");
       const parsedAmount = parseFloat(sanitizedAmount);
 
@@ -108,16 +107,16 @@ export default function OperationsScreen() {
 
       const payload = {
         farmingBatchId: selectedBatchId,
-        feedTypeId: selectedFeedId, // <--- BỔ SUNG DÒNG NÀY
+        feedTypeId: selectedFeedId,
         amount: parsedAmount,
         createdDate: new Date().toISOString(),
       };
 
       if (editingLogId) {
-        await axiosClient.put(`/feeding-logs/${editingLogId}`, payload); //
+        await axiosClient.put(`/feeding-logs/${editingLogId}`, payload);
         Alert.alert("Thành công", "Đã cập nhật lịch sử cho ăn.");
       } else {
-        await operationsApi.postFeeding(payload); //
+        await operationsApi.postFeeding(payload);
         Alert.alert("Thành công", "Đã lưu vào lịch sử cho ăn.");
       }
 
@@ -141,7 +140,6 @@ export default function OperationsScreen() {
     setModalMortalityVisible(true);
   };
 
-  // Hàm Lưu / Cập nhật cá chết
   const handleSaveMortality = async () => {
     if (!selectedBatchId || !deadAmount) {
       Alert.alert("Thông báo", "Vui lòng nhập đủ các trường có dấu (*)");
@@ -171,11 +169,26 @@ export default function OperationsScreen() {
       }
 
       setModalMortalityVisible(false);
-      loadInitialData(); // Load lại data mới nhất
+      loadInitialData();
     } catch (error: any) {
       Alert.alert("Lỗi", "Không thể lưu dữ liệu.");
     }
   };
+
+  // --- LOGIC KIỂM TRA TRẠNG THÁI THU HOẠCH ---
+  const selectedBatchInfo = batches.find((b) => b.id === selectedBatchId);
+  const isBatchHarvested = () => {
+    if (!selectedBatchInfo || !selectedBatchInfo.status) return false;
+    const statusStr = String(selectedBatchInfo.status).toUpperCase().trim();
+    return (
+      statusStr === "2" ||
+      statusStr === "HARVESTED" ||
+      statusStr === "THU HOACH" ||
+      statusStr === "THU HOẠCH"
+    );
+  };
+  const isHarvested = isBatchHarvested();
+  // ------------------------------------------
 
   if (loading)
     return (
@@ -288,7 +301,6 @@ export default function OperationsScreen() {
       )}
 
       <FlatList
-        // Chuyển đổi dữ liệu tùy theo Tab đang chọn
         data={
           activeTab === "feeding"
             ? feedingLogs
@@ -355,7 +367,6 @@ export default function OperationsScreen() {
                   activeTab === "mortality" ||
                   activeTab === "history") && (
                   <View style={styles.detailContainer}>
-                    {/* Chỉ hiện Loại cám nếu là Cho ăn */}
                     {(activeTab === "feeding" ||
                       (activeTab === "history" &&
                         historySubTab === "feed_hist")) && (
@@ -394,7 +405,6 @@ export default function OperationsScreen() {
                 )}
               </View>
 
-              {/* Hiện nút Edit cho cả Cho ăn và Cá chết */}
               {(activeTab === "feeding" || activeTab === "mortality") && (
                 <TouchableOpacity
                   onPress={() =>
@@ -420,7 +430,6 @@ export default function OperationsScreen() {
         )}
       />
 
-      {/* NÚT FAB (+) GÓC PHẢI LUÔN DÙNG ĐỂ THÊM MỚI BẢN GHI VÀO LỊCH SỬ */}
       {(activeTab === "feeding" || activeTab === "mortality") && (
         <TouchableOpacity
           style={[
@@ -437,6 +446,7 @@ export default function OperationsScreen() {
         </TouchableOpacity>
       )}
 
+      {/* --- MODAL CHO ĂN --- */}
       <Modal visible={modalFeedingVisible} animationType="slide" transparent>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -466,39 +476,83 @@ export default function OperationsScreen() {
                 onChange={(item) => setSelectedBatchId(item.value)}
                 placeholder="Chọn lô nuôi..."
               />
-              <Text style={styles.label}>Loại thức ăn</Text>
-              <Dropdown
-                style={styles.dropdown}
-                data={feedTypes}
-                labelField="label"
-                valueField="value"
-                placeholder="Chọn loại cám..."
-                value={selectedFeedId}
-                onChange={(i) => setSelectedFeedId(i.value)}
-              />
-              <Text style={styles.label}>Khối lượng (kg) *</Text>
-              <TextInput
-                style={styles.input}
-                keyboardType="decimal-pad" // Hiện bàn phím số có dấu chấm/phẩy
-                value={feedAmount}
-                // TỰ ĐỘNG CHUYỂN DẤU PHẨY THÀNH DẤU CHẤM KHI ĐANG NHẬP
-                onChangeText={(text) => setFeedAmount(text.replace(",", "."))}
-                placeholder="Ví dụ: 7.2"
-                returnKeyType="done"
-              />
-              <View style={{ height: 20 }} />
+
+              {isHarvested ? (
+                <View
+                  style={{
+                    marginTop: 20,
+                    padding: 16,
+                    backgroundColor: "#FEF2F2",
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: "#FECACA",
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: theme.colors.danger,
+                      textAlign: "center",
+                      fontWeight: "700",
+                      fontSize: 15,
+                    }}
+                  >
+                    Lô nuôi này đã thu hoạch!
+                  </Text>
+                  <Text
+                    style={{
+                      color: theme.colors.danger,
+                      textAlign: "center",
+                      marginTop: 4,
+                      fontSize: 12,
+                    }}
+                  >
+                    Hệ thống không cho phép ghi nhận thêm hoạt động cho ăn.
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  <Text style={styles.label}>Loại thức ăn</Text>
+                  <Dropdown
+                    style={styles.dropdown}
+                    data={feedTypes}
+                    labelField="label"
+                    valueField="value"
+                    placeholder="Chọn loại cám..."
+                    value={selectedFeedId}
+                    onChange={(i) => setSelectedFeedId(i.value)}
+                  />
+                  <Text style={styles.label}>Khối lượng (kg) *</Text>
+                  <TextInput
+                    style={styles.input}
+                    keyboardType="decimal-pad"
+                    value={feedAmount}
+                    onChangeText={(text) =>
+                      setFeedAmount(text.replace(",", "."))
+                    }
+                    placeholder="Ví dụ: 7.2"
+                    returnKeyType="done"
+                  />
+                  <View style={{ height: 20 }} />
+                </>
+              )}
             </ScrollView>
-            <TouchableOpacity
-              style={styles.btnSave}
-              onPress={handleSaveFeeding}
-            >
-              <Text style={styles.btnTextSave}>
-                {editingLogId ? "Cập nhật" : "Lưu vào lịch sử"}
-              </Text>
-            </TouchableOpacity>
+
+            {/* ẨN NÚT LƯU KHI ĐÃ THU HOẠCH */}
+            {!isHarvested && (
+              <TouchableOpacity
+                style={styles.btnSave}
+                onPress={handleSaveFeeding}
+              >
+                <Text style={styles.btnTextSave}>
+                  {editingLogId ? "Cập nhật" : "Lưu vào lịch sử"}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* --- MODAL CÁ CHẾT --- */}
       <Modal visible={modalMortalityVisible} animationType="slide" transparent>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -529,25 +583,69 @@ export default function OperationsScreen() {
                 onChange={(item) => setSelectedBatchId(item.value)}
                 placeholder="Chọn lô nuôi..."
               />
-              <Text style={styles.label}>Số lượng (con) *</Text>
-              <TextInput
-                style={styles.input}
-                keyboardType="numeric"
-                value={deadAmount}
-                onChangeText={setDeadAmount}
-                placeholder="Ví dụ: 3"
-                returnKeyType="done"
-              />
-              <View style={{ height: 20 }} />
+
+              {isHarvested ? (
+                <View
+                  style={{
+                    marginTop: 20,
+                    padding: 16,
+                    backgroundColor: "#FEF2F2",
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: "#FECACA",
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: theme.colors.danger,
+                      textAlign: "center",
+                      fontWeight: "700",
+                      fontSize: 15,
+                    }}
+                  >
+                    Lô nuôi này đã thu hoạch!
+                  </Text>
+                  <Text
+                    style={{
+                      color: theme.colors.danger,
+                      textAlign: "center",
+                      marginTop: 4,
+                      fontSize: 13,
+                    }}
+                  >
+                    Hệ thống không cho phép ghi nhận thêm số lượng cá chết.
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  <Text style={styles.label}>Số lượng (con) *</Text>
+                  <TextInput
+                    style={styles.input}
+                    keyboardType="numeric"
+                    value={deadAmount}
+                    onChangeText={setDeadAmount}
+                    placeholder="Ví dụ: 3"
+                    returnKeyType="done"
+                  />
+                  <View style={{ height: 20 }} />
+                </>
+              )}
             </ScrollView>
-            <TouchableOpacity
-              style={[styles.btnSave, { backgroundColor: theme.colors.danger }]}
-              onPress={handleSaveMortality}
-            >
-              <Text style={styles.btnTextSave}>
-                {editingMortalityId ? "Cập nhật" : "Lưu hệ thống"}
-              </Text>
-            </TouchableOpacity>
+
+            {/* ẨN NÚT LƯU KHI ĐÃ THU HOẠCH */}
+            {!isHarvested && (
+              <TouchableOpacity
+                style={[
+                  styles.btnSave,
+                  { backgroundColor: theme.colors.danger },
+                ]}
+                onPress={handleSaveMortality}
+              >
+                <Text style={styles.btnTextSave}>
+                  {editingMortalityId ? "Cập nhật" : "Lưu hệ thống"}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </KeyboardAvoidingView>
       </Modal>
