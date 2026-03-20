@@ -10,56 +10,54 @@ export const dashboardService = {
 
   getDashboardData: async () => {
     try {
-      const [tanksRes, alertsRes] = await Promise.all([
-        dashboardApi.getFishTanks(1, 20),
+      // Gọi song song API lấy Batches, Tanks và Alerts để tiết kiệm thời gian (Tránh lỗi N+1)
+      const [batchesRes, tanksRes, alertsRes] = await Promise.all([
+        dashboardApi.getBatchesList(1, 20),
+        dashboardApi.getFishTanks(1, 100), // Lấy số lượng lớn để đủ data map thể tích
         dashboardApi.getAlerts(1, 1),
       ]);
 
-      const tanks = tanksRes.data.data || [];
+      const rawBatches = batchesRes.data.data || [];
+      const rawTanks = tanksRes.data.data || [];
 
-      const tanksWithBatchData = await Promise.all(
-        tanks.map(async (tank: any) => {
-          try {
-            const batchRes = await dashboardApi.getBatches(tank.id);
-            const currentBatch = batchRes.data.data?.[0]; // Lấy lô nuôi mới nhất
+      // Tạo một Hash Map lưu thông tin bể để tra cứu nhanh thể tích (Volume)
+      const tankMap = new Map();
+      rawTanks.forEach((tank: any) => {
+        tankMap.set(tank.id, tank);
+      });
 
-            const realVolume = dashboardService.calculateVolume(
-              tank.radius,
-              tank.height,
-            );
+      // Format lại danh sách Lô nuôi
+      const formattedBatches = rawBatches.map((batch: any) => {
+        const tankInfo = tankMap.get(batch.fishTankId);
 
-            return {
-              ...tank,
-              speciesName: currentBatch?.speciesName || "Chưa thả cá",
-              stageName: currentBatch?.stageName || "", // Giai đoạn sinh trưởng
-              batchStatus: currentBatch?.status || "", // Trạng thái lô nuôi
+        // Tính toán thể tích dựa trên dữ liệu bể cá đã map được
+        const realVolume = tankInfo
+          ? dashboardService.calculateVolume(tankInfo.radius, tankInfo.height)
+          : 0;
 
-              // Dùng currentQuantity cho thực tế, hoặc initialQuantity để test hiển thị
-              // displayQuantity: currentBatch
-              //   ? `${currentBatch.currentQuantity.toLocaleString()} ${currentBatch.unitOfMeasure || "con"}`
-              //   : "0 con",
-              // Đổi sang initialQuantity để test hiển thị số lượng thả ban đầu
-              displayQuantity: currentBatch
-                ? `${currentBatch.initialQuantity} ${currentBatch.unitOfMeasure || "con"}` // Đổi current thành initial để test
-                : "0 con",
+        return {
+          id: batch.id,
+          batchName: batch.name, // Tên lô nuôi (VD: Lô Cá Hồi T1)
+          tankId: batch.fishTankId,
+          tankName: batch.fishTankName, // Nằm ở bể nào
+          speciesName: batch.speciesName,
+          stageName: batch.stageName,
+          status: batch.status,
 
-              displayVolume:
-                realVolume > 0 ? `${realVolume} m³` : "Chưa nhập số liệu",
-            };
-          } catch (err) {
-            return {
-              ...tank,
-              speciesName: "N/A",
-              displayQuantity: "0 con",
-              displayVolume: "N/A",
-            };
-          }
-        }),
-      );
+          // Ưu tiên hiển thị số lượng hiện tại (CurrentQuantity)
+          displayQuantity: `${batch.currentQuantity ?? batch.initialQuantity ?? 0} ${batch.unitOfMeasure || "con"}`,
+          displayVolume:
+            realVolume > 0
+              ? `${realVolume} m³`
+              : tankInfo?.volume
+                ? `${tankInfo.volume} m³`
+                : "Chưa nhập",
+        };
+      });
 
       return {
-        tanks: tanksWithBatchData,
-        totalTanks: tanksRes.data.meta?.totalItems || 0,
+        batches: formattedBatches,
+        totalBatches: batchesRes.data.meta?.totalItems || 0,
         totalAlerts: alertsRes.data.meta?.totalItems || 0,
       };
     } catch (error) {

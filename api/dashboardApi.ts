@@ -16,9 +16,12 @@ export const dashboardApi = {
     return axiosClient.get(`/alerts?page=${page}&pageSize=${pageSize}`);
   },
   // API lấy lô nuôi để lấy loại cá và số lượng
-  getBatches: (tankId: string) => {
-    return axiosClient.get(`/batches`, {
-      params: { FishTankId: tankId, Page: 1, PageSize: 1 },
-    });
+  // getBatches: (tankId: string) => {
+  //   return axiosClient.get(`/batches`, {
+  //     params: { FishTankId: tankId, Page: 1, PageSize: 1 },
+  //   });
+  // },
+  getBatchesList: (page = 1, pageSize = 20) => {
+    return axiosClient.get(`/batches?page=${page}&pageSize=${pageSize}`);
   },
 };

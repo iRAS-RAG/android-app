@@ -47,6 +47,10 @@ export default function RootLayout() {
               name="maintenance/log"
               options={{ headerShown: false }}
             />
+            <Stack.Screen
+              name="batchDetail/[id]"
+              options={{ headerShown: false }}
+            />
           </Stack>
         </LinearGradient>
       </AuthProvider>

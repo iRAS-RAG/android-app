@@ -48,24 +48,24 @@ export const styles = StyleSheet.create({
   // THẺ THỐNG KÊ TRONG HEADER
   quickStatsRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: 8,
   },
   statCard: {
     flex: 1,
-    padding: 12, // Giảm padding từ 15 xuống 12
+    padding: 10, // Giảm padding từ 12 xuống 10
     backgroundColor: "rgba(255, 255, 255, 0.15)",
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: theme.colors.white,
     opacity: 0.85,
     marginBottom: 2,
   },
   statValue: {
-    fontSize: 22, // Giảm nhẹ font size từ 26 xuống 22 để tổng thể gọn lại
+    fontSize: 20, // Giảm nhẹ font size từ 26 xuống 22 để tổng thể gọn lại
     fontWeight: "800",
     color: theme.colors.white,
   },
@@ -181,5 +181,31 @@ export const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontWeight: "700",
     fontSize: 13,
+  },
+  tabContainer: {
+    flexDirection: "row",
+    backgroundColor: "#F1F5F9",
+    borderRadius: 12,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    padding: 4,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: 8,
+  },
+  tabActive: {
+    backgroundColor: theme.colors.white,
+    ...theme.shadows.light,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: theme.colors.textSecondary,
+  },
+  tabTextActive: {
+    color: theme.colors.primary,
   },
 });
