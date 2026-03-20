@@ -565,10 +565,7 @@ export default function DashboardScreen() {
                               marginTop: 4,
                             }}
                           >
-                            Thể tích:{" "}
-                            {tank.volume
-                              ? `${tank.volume} m³`
-                              : "Chưa cập nhật"}
+                            Giám sát thông số cảm biến & thiết bị
                           </Text>
                         </View>
                         <Ionicons
