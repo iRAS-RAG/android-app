@@ -10,7 +10,7 @@ import * as Device from "expo-device";
 const BASE_URL =
   Platform.OS === "android" && !Device.isDevice
     ? "http://10.0.2.2:5027/api"
-    : "http://192.168.1.51:5027/api";
+    : "http://192.168.1.55:5027/api";
 
 console.log("====================================");
 console.log("📱 Device Info:");

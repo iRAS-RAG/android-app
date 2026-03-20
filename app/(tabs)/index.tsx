@@ -16,7 +16,7 @@ import {
   TextInput,
   StatusBar,
 } from "react-native";
-import { Drawer } from "react-native-drawer-layout";
+import { Drawer } from "react-native-drawer-layout"; // Lưu ý fix thư viện nếu bạn dùng tên khác
 import { dashboardService } from "@/services/dashboardService";
 import authService from "@/services/authService";
 import axiosClient from "@/api/axiosClient";
@@ -29,31 +29,50 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Quản lý dữ liệu từ API (Đổi tanks -> batches)
+  // State quản lý Tab đang hiển thị
+  const [activeTab, setActiveTab] = useState<"batches" | "tanks">("batches");
+
+  // Dữ liệu
   const [batches, setBatches] = useState<any[]>([]);
+  const [tanks, setTanks] = useState<any[]>([]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [showFullList, setShowFullList] = useState(false);
   const [farmInfo, setFarmInfo] = useState<any>(null);
   const [userData, setUserData] = useState<any>(null);
-  const [stats, setStats] = useState({ totalBatches: 0, totalAlerts: 0 });
-
+  const [stats, setStats] = useState({
+    totalBatches: 0,
+    totalAlerts: 0,
+    totalTanks: 0,
+  });
   const loadDashboardData = async () => {
     try {
-      const [farmRes, userProfile] = await Promise.all([
+      // Gọi song song các API để lấy data (Farm, User, Dashboard Data, Tanks List)
+      const [farmRes, userProfile, dashData, tanksRes] = await Promise.all([
         axiosClient.get("/farms?page=1&pageSize=1"),
         authService.getCurrentUserProfile(),
+        dashboardService.getDashboardData(),
+        axiosClient.get("/fish-tanks?page=1&pageSize=100"), // API lấy danh sách bể
       ]);
 
       setFarmInfo(farmRes.data.data?.[0]);
       setUserData(userProfile);
+      setBatches(dashData.batches);
 
-      const data = await dashboardService.getDashboardData();
+      // --- PHẦN ĐƯỢC CHỈNH SỬA ---
+      // 1. Khai báo và lấy dữ liệu gán vào biến tanksList trước
+      const tanksList = tanksRes.data.data || [];
 
-      setBatches(data.batches);
+      // 2. Gán dữ liệu vào state setTanks
+      setTanks(tanksList);
+
+      // 3. Bây giờ bạn có thể gọi tanksList.length an toàn mà không bị lỗi undefined
       setStats({
-        totalBatches: data.totalBatches,
-        totalAlerts: data.totalAlerts,
+        totalBatches: dashData.totalBatches,
+        totalAlerts: dashData.totalAlerts,
+        totalTanks: tanksRes.data.meta?.totalItems || tanksList.length || 0,
       });
+      // ---------------------------
     } catch (error) {
       console.error("Lỗi kết nối Dashboard API:", error);
     } finally {
@@ -66,16 +85,23 @@ export default function DashboardScreen() {
     loadDashboardData();
   }, []);
 
-  // Tìm kiếm theo tên lô nuôi HOẶC tên bể chứa lô đó
+  // Filter dữ liệu dựa theo Tab đang chọn
   const filteredBatches = batches.filter(
     (batch) =>
       batch.batchName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       batch.tankName.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
+  const filteredTanks = tanks.filter((tank) =>
+    tank.name.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
   const displayedBatches = showFullList
     ? filteredBatches
     : filteredBatches.slice(0, 3);
+  const displayedTanks = showFullList
+    ? filteredTanks
+    : filteredTanks.slice(0, 3);
 
   const renderDrawerContent = () => (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.white }}>
@@ -203,6 +229,10 @@ export default function DashboardScreen() {
 
             <View style={styles.quickStatsRow}>
               <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Bể nuôi</Text>
+                <Text style={styles.statValue}>{stats.totalTanks}</Text>
+              </View>
+              <View style={styles.statCard}>
                 <Text style={styles.statLabel}>Lô đang nuôi</Text>
                 <Text style={styles.statValue}>{stats.totalBatches}</Text>
               </View>
@@ -243,11 +273,59 @@ export default function DashboardScreen() {
             </View>
           </View>
 
-          {/* BATCH LIST SECTION */}
+          {/* TAB CHUYỂN ĐỔI */}
+          <View style={styles.tabContainer}>
+            <TouchableOpacity
+              style={[
+                styles.tabButton,
+                activeTab === "tanks" && styles.tabActive,
+              ]}
+              onPress={() => {
+                setActiveTab("tanks");
+                setShowFullList(false);
+              }}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "tanks" && styles.tabTextActive,
+                ]}
+              >
+                Bể nuôi
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.tabButton,
+                activeTab === "batches" && styles.tabActive,
+              ]}
+              onPress={() => {
+                setActiveTab("batches");
+                setShowFullList(false);
+              }}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "batches" && styles.tabTextActive,
+                ]}
+              >
+                Lô nuôi
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* DANH SÁCH HIỂN THỊ */}
           <View style={styles.tankContainer}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Danh sách lô nuôi</Text>
-              {filteredBatches.length > 3 && (
+              <Text style={styles.sectionTitle}>
+                {activeTab === "batches"
+                  ? "Danh sách Lô nuôi"
+                  : "Danh sách Bể nuôi"}
+              </Text>
+              {(activeTab === "batches" ? filteredBatches : filteredTanks)
+                .length > 3 && (
                 <TouchableOpacity
                   onPress={() => setShowFullList(!showFullList)}
                 >
@@ -258,95 +336,222 @@ export default function DashboardScreen() {
               )}
             </View>
 
-            {displayedBatches.length > 0 ? (
-              displayedBatches.map((batch) => (
-                <TouchableOpacity
-                  key={batch.id}
-                  style={styles.tankCard}
-                  onPress={() => router.push(`/tankDetail/${batch.tankId}`)} // Chuyển hướng tới trang chi tiết lô nuôi
-                >
-                  <View style={styles.tankHeader}>
-                    <View style={styles.tankAvatar}>
-                      <MaterialCommunityIcons
-                        name="fish"
-                        size={26}
-                        color={theme.colors.primary}
+            {/* RENDER BATCHES */}
+            {activeTab === "batches" &&
+              (displayedBatches.length > 0 ? (
+                displayedBatches.map((batch) => (
+                  <TouchableOpacity
+                    key={batch.id}
+                    style={styles.tankCard}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/batchDetail/[id]",
+                        params: { id: batch.id },
+                      })
+                    }
+                  >
+                    <View style={styles.tankHeader}>
+                      <View style={styles.tankAvatar}>
+                        <MaterialCommunityIcons
+                          name="fish"
+                          size={26}
+                          color={theme.colors.primary}
+                        />
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 15 }}>
+                        <View
+                          style={{ flexDirection: "row", alignItems: "center" }}
+                        >
+                          <Text style={styles.tankName}>{batch.batchName}</Text>
+                          {batch.status === 2 && (
+                            <View
+                              style={{
+                                marginLeft: 8,
+                                backgroundColor: "#E2E8F0",
+                                paddingHorizontal: 6,
+                                borderRadius: 4,
+                              }}
+                            >
+                              <Text style={{ fontSize: 9, color: "#64748B" }}>
+                                ĐÃ THU HOẠCH
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.fishName}>
+                          {batch.speciesName}{" "}
+                          {batch.stageName ? `• ${batch.stageName}` : ""}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: theme.colors.textSecondary,
+                            marginTop: 2,
+                          }}
+                        >
+                          Bể: {batch.tankName}
+                        </Text>
+                      </View>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={20}
+                        color={theme.colors.border}
                       />
                     </View>
-                    <View style={{ flex: 1, marginLeft: 15 }}>
+
+                    <View style={styles.tankStatsGrid}>
+                      <View style={styles.gridItem}>
+                        <Text style={styles.gridLabel}>DUNG TÍCH BỂ</Text>
+                        <Text style={styles.gridValue}>
+                          {batch.displayVolume}
+                        </Text>
+                      </View>
                       <View
-                        style={{ flexDirection: "row", alignItems: "center" }}
-                      >
-                        <Text style={styles.tankName}>{batch.batchName}</Text>
-                        {batch.status ===
-                          2 /* Assuming Enum 2 is HARVESTED */ && (
+                        style={{
+                          width: 1,
+                          backgroundColor: "#E2E8F0",
+                          height: "100%",
+                        }}
+                      />
+                      <View style={[styles.gridItem, { paddingLeft: 15 }]}>
+                        <Text style={styles.gridLabel}>TỒN HIỆN TẠI</Text>
+                        <Text style={styles.gridValue}>
+                          {batch.displayQuantity}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.detailBtn}>
+                      <Text style={styles.detailBtnText}>Chi tiết lô nuôi</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>
+                    Không tìm thấy lô nuôi nào
+                  </Text>
+                </View>
+              ))}
+
+            {/* RENDER TANKS */}
+            {activeTab === "tanks" &&
+              (displayedTanks.length > 0 ? (
+                displayedTanks.map((tank) => {
+                  const hasAlert = tank.hasOpenAlert; // Hoặc tank.status === 1 tùy API của bạn
+
+                  return (
+                    <TouchableOpacity
+                      key={tank.id}
+                      style={[
+                        styles.tankCard,
+                        hasAlert && {
+                          borderColor: theme.colors.danger,
+                          borderWidth: 1,
+                        },
+                      ]}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/tankDetail/[id]",
+                          params: { id: tank.id },
+                        })
+                      }
+                    >
+                      <View style={styles.tankHeader}>
+                        <View
+                          style={[
+                            styles.tankAvatar,
+                            {
+                              backgroundColor: hasAlert ? "#FEF2F2" : "#EFF6FF",
+                            },
+                          ]}
+                        >
+                          <MaterialCommunityIcons
+                            name="water-outline"
+                            size={26}
+                            color={
+                              hasAlert
+                                ? theme.colors.danger
+                                : theme.colors.primary
+                            }
+                          />
+                        </View>
+                        <View style={{ flex: 1, marginLeft: 15 }}>
                           <View
                             style={{
-                              marginLeft: 8,
-                              backgroundColor: "#E2E8F0",
-                              paddingHorizontal: 6,
-                              borderRadius: 4,
+                              flexDirection: "row",
+                              alignItems: "center",
                             }}
                           >
-                            <Text style={{ fontSize: 9, color: "#64748B" }}>
-                              ĐÃ THU HOẠCH
-                            </Text>
+                            <Text style={styles.tankName}>{tank.name}</Text>
+                            {hasAlert && (
+                              <View
+                                style={{
+                                  marginLeft: 8,
+                                  backgroundColor: "#FEF2F2",
+                                  paddingHorizontal: 6,
+                                  borderRadius: 4,
+                                  borderWidth: 1,
+                                  borderColor: "#FECACA",
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 9,
+                                    color: theme.colors.danger,
+                                    fontWeight: "700",
+                                  }}
+                                >
+                                  CẢNH BÁO
+                                </Text>
+                              </View>
+                            )}
                           </View>
-                        )}
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              color: theme.colors.textSecondary,
+                              marginTop: 4,
+                            }}
+                          >
+                            Thể tích:{" "}
+                            {tank.volume
+                              ? `${tank.volume} m³`
+                              : "Chưa cập nhật"}
+                          </Text>
+                        </View>
+                        <Ionicons
+                          name="chevron-forward"
+                          size={20}
+                          color={theme.colors.border}
+                        />
                       </View>
-                      <Text style={styles.fishName}>
-                        {batch.speciesName}{" "}
-                        {batch.stageName ? `• ${batch.stageName}` : ""}
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          color: theme.colors.textSecondary,
-                          marginTop: 2,
-                        }}
+
+                      <View
+                        style={[
+                          styles.detailBtn,
+                          { marginTop: 15 }, // <--- THÊM DÒNG NÀY ĐỂ TẠO KHOẢNG TRỐNG
+                          hasAlert && { backgroundColor: "#FEF2F2" },
+                        ]}
                       >
-                        Bể: {batch.tankName}
-                      </Text>
-                    </View>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={20}
-                      color={theme.colors.border}
-                    />
-                  </View>
-
-                  <View style={styles.tankStatsGrid}>
-                    <View style={styles.gridItem}>
-                      <Text style={styles.gridLabel}>DUNG TÍCH BỂ</Text>
-                      <Text style={styles.gridValue}>
-                        {batch.displayVolume}
-                      </Text>
-                    </View>
-                    <View
-                      style={{
-                        width: 1,
-                        backgroundColor: "#E2E8F0",
-                        height: "100%",
-                      }}
-                    />
-                    <View style={[styles.gridItem, { paddingLeft: 15 }]}>
-                      <Text style={styles.gridLabel}>TỒN HIỆN TẠI</Text>
-                      <Text style={styles.gridValue}>
-                        {batch.displayQuantity}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.detailBtn}>
-                    <Text style={styles.detailBtnText}>Chi tiết lô nuôi</Text>
-                  </View>
-                </TouchableOpacity>
-              ))
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>Không tìm thấy lô nuôi nào</Text>
-              </View>
-            )}
+                        <Text
+                          style={[
+                            styles.detailBtnText,
+                            hasAlert && { color: theme.colors.danger },
+                          ]}
+                        >
+                          Xem biểu đồ & Thiết bị
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              ) : (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>
+                    Không tìm thấy bể nuôi nào
+                  </Text>
+                </View>
+              ))}
           </View>
         </ScrollView>
       </SafeAreaView>
