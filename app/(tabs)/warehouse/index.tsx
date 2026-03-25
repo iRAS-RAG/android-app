@@ -91,7 +91,7 @@ export default function OperationsScreen() {
   };
 
   const handleSaveFeeding = async () => {
-    if (!selectedBatchId || !feedAmount) {
+    if (!selectedBatchId || !feedAmount || !selectedFeedId) {
       Alert.alert("Thông báo", "Vui lòng nhập đủ các trường có dấu (*)");
       return;
     }
@@ -105,18 +105,20 @@ export default function OperationsScreen() {
         return;
       }
 
+      // Payload mới KHÔNG CẦN farmingBatchId nữa
       const payload = {
-        farmingBatchId: selectedBatchId,
         feedTypeId: selectedFeedId,
         amount: parsedAmount,
         createdDate: new Date().toISOString(),
       };
 
       if (editingLogId) {
+        // (Ghi chú: Hiện Backend của bạn chưa có API PUT để sửa lịch sử đâu nhé)
         await axiosClient.put(`/feeding-logs/${editingLogId}`, payload);
         Alert.alert("Thành công", "Đã cập nhật lịch sử cho ăn.");
       } else {
-        await operationsApi.postFeeding(payload);
+        // SỬA DÒNG NÀY: Truyền selectedBatchId vào hàm postFeeding
+        await operationsApi.postFeeding(selectedBatchId, payload);
         Alert.alert("Thành công", "Đã lưu vào lịch sử cho ăn.");
       }
 
@@ -124,6 +126,7 @@ export default function OperationsScreen() {
       loadInitialData();
     } catch (error: any) {
       Alert.alert("Lỗi", "Không thể lưu dữ liệu.");
+      console.error(error);
     }
   };
 
