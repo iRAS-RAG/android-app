@@ -21,13 +21,13 @@ export const alertService = {
           item.value !== undefined && item.value !== null
             ? `${item.value}`
             : "N/A",
-        limit: "N/A", // Backend hiện chưa trả về giá trị Threshold cụ thể
 
-        // Map trạng thái sang UI
+        // SỬA Ở ĐÂY: Nối MinThreshold và MaxThreshold lại thành chuỗi
+        limit: `${item.minThreshold ?? 0} - ${item.maxThreshold ?? 0}`,
+
         level: mapSeverity(item.status),
         status: mapStatus(item.status),
         color: mapColor(item.status),
-
         tank: item.fishTankName || "Bể chưa xác định",
         time: formatTime(item.raisedAt || item.createdAt),
         type: "Sensor",
@@ -46,14 +46,14 @@ export const alertService = {
 
       if (!item) return null;
 
-      // 1. Lấy các giá trị (Gán mặc định = 0 nếu thiếu để tránh lỗi NaN)
+      // 1. Lấy các giá trị (Sửa tên biến cho khớp với JSON trả về từ AlertDto)
       const currentValue = item.value || 0;
-      const min = item.minValue ?? 0;
-      const max = item.maxValue ?? 0;
+      const min = item.minThreshold ?? 0;
+      const max = item.maxThreshold ?? 0;
 
       // 2. Xử lý logic tính Vượt ngưỡng và Ngưỡng an toàn
-      let limitText = `${min} - ${max}`; // Ô Ngưỡng an toàn bị vi phạm
-      let overPercentage = "0%"; // Ô Vượt ngưỡng (%)
+      let limitText = `${min} - ${max}`;
+      let overPercentage = "0%";
 
       if (currentValue > max && max > 0) {
         limitText = `> ${max}`;

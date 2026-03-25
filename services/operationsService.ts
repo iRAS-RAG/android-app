@@ -72,21 +72,34 @@ export const operationsService = {
 
   getFeedingHistory: async () => {
     try {
-      const [logsRes, feedsRes] = await Promise.all([
-        operationsApi.getFeedingLogs(),
+      // 1. Lấy danh sách lô nuôi & loại thức ăn cùng lúc
+      const [batchesRes, feedsRes] = await Promise.all([
+        axiosClient.get("/batches", { params: { page: 1, pageSize: 100 } }),
         operationsApi.getFeedTypes(),
       ]);
 
-      const logs = logsRes.data?.data || [];
-
-      /**
-       * QUAN TRỌNG: Theo FeedTypeController, kết quả trả về có phân trang.
-       * Dữ liệu thực nằm trong data.items (hoặc data.data.items tùy cấu trúc axios của bạn).
-       */
+      const batches =
+        batchesRes.data?.data?.items || batchesRes.data?.data || [];
       const feedTypes = feedsRes.data?.data?.items || feedsRes.data?.data || [];
 
-      return logs.map((log: any) => {
-        // 1. Tìm loại thức ăn khớp ID (Ép kiểu chuỗi để tránh lệch Guid/String)
+      // 2. Gọi API lấy lịch sử cho ăn của TỪNG lô nuôi
+      const feedingLogsPromises = batches.map(
+        (b: any) => operationsApi.getFeedingLogsByBatch(b.id).catch(() => null), // Bỏ qua nếu lô bị lỗi
+      );
+
+      const feedingLogsResults = await Promise.all(feedingLogsPromises);
+
+      // 3. Gộp tất cả log lại thành 1 mảng
+      let allLogs: any[] = [];
+      feedingLogsResults.forEach((res: any) => {
+        if (res?.data?.data) {
+          const logs = res.data.data.items || res.data.data;
+          allLogs = [...allLogs, ...logs];
+        }
+      });
+
+      // 4. Map dữ liệu để hiển thị
+      return allLogs.map((log: any) => {
         const matchedFeed = feedTypes.find(
           (f: any) =>
             String(f.id).toLowerCase() === String(log.feedTypeId).toLowerCase(),
@@ -99,12 +112,8 @@ export const operationsService = {
           time: log.createdDate
             ? new Date(log.createdDate).toLocaleString("vi-VN")
             : "N/A",
-          tank: log.farmingBatchName || "Bể nuôi",
-
-          // 2. Lấy trường 'name' từ DB đã tìm thấy thông qua matchedFeed
-          // Nếu không tìm thấy mới dùng giá trị dự phòng
+          tank: log.farmingBatchName || "Lô nuôi",
           feedName: matchedFeed?.name || log.feedTypeName || "Thức ăn hỗn hợp",
-
           amount: log.amount,
           unit: "kg",
           user: "KTV Hệ thống",

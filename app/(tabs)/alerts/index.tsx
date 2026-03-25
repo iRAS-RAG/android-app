@@ -57,16 +57,15 @@ export default function AlertsScreen() {
   };
 
   // --- 2. LOGIC LỌC DỮ LIỆU ---
+  // --- 2. LOGIC LỌC DỮ LIỆU ---
   const filteredAlerts = alerts.filter((item) => {
     const matchesSearch =
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.tank.toLowerCase().includes(searchQuery.toLowerCase());
 
+    // SIÊU GỌN: Chỉ cần so sánh đúng với item.status ("Mới", "Đang xử lý", "Đã giải quyết")
     const matchesStatus =
-      statusFilter === "Tất cả" ||
-      (statusFilter === "Nguy hiểm" && item.level === "Nguy hiểm") ||
-      (statusFilter === "Cảnh báo" && item.level === "Cảnh báo") ||
-      (statusFilter === "Đang xử lý" && item.status === "Đang xử lý");
+      statusFilter === "Tất cả" || statusFilter === item.status;
 
     let matchesTime = true;
     if (timeFilter === "Gần đây") matchesTime = item.time.includes("phút");
@@ -235,10 +234,10 @@ export default function AlertsScreen() {
           />
           <FilterTab
             icon="alert-circle-outline"
-            label="Nguy hiểm"
+            label="Mới"
             count={alerts.filter((a) => a.status === "Mới").length}
-            active={statusFilter === "Nguy hiểm"}
-            onPress={() => setStatusFilter("Nguy hiểm")}
+            active={statusFilter === "Mới"}
+            onPress={() => setStatusFilter("Mới")}
             color="#FEE2E2"
             textColor={theme.colors.danger}
           />
