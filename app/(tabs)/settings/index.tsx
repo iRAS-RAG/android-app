@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  StyleSheet,
   Alert,
   ActivityIndicator,
 } from "react-native";
@@ -14,11 +13,94 @@ import { theme } from "@/theme";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import authService from "@/services/authService"; // Import để lấy profile thật
+import authService from "@/services/authService";
 import { styles } from "@/styles/settings/setting.styles";
+
+// ==========================================
+// 1. ĐỊNH NGHĨA COMPONENT DÙNG CHUNG
+// ==========================================
+
+interface SettingItemProps {
+  icon: keyof typeof Ionicons.glyphMap;
+  iconColor?: string;
+  title: string;
+  subTitle?: string;
+  type?: "navigate" | "switch" | "value" | "action";
+  valueText?: string;
+  switchValue?: boolean;
+  onSwitchChange?: (value: boolean) => void;
+  onPress?: () => void;
+  isDestructive?: boolean;
+  hideBottomBorder?: boolean;
+}
+
+const SettingItem: React.FC<SettingItemProps> = ({
+  icon,
+  iconColor = "#3B82F6",
+  title,
+  subTitle,
+  type = "navigate",
+  valueText,
+  switchValue = false,
+  onSwitchChange,
+  onPress,
+  isDestructive = false,
+  hideBottomBorder = false,
+}) => {
+  const textColor = isDestructive ? "#EF4444" : "#1E293B";
+  const finalIconColor = isDestructive ? "#EF4444" : iconColor;
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.itemContainer,
+        hideBottomBorder && { borderBottomWidth: 0 },
+      ]}
+      onPress={onPress}
+      disabled={
+        type === "switch" || type === "value" || (!onPress && !isDestructive)
+      }
+      activeOpacity={0.7}
+    >
+      <View
+        style={[styles.iconBox, { backgroundColor: `${finalIconColor}15` }]}
+      >
+        <Ionicons name={icon} size={20} color={finalIconColor} />
+      </View>
+
+      <View style={styles.itemContent}>
+        <Text style={[styles.itemTitle, { color: textColor }]}>{title}</Text>
+        {subTitle && <Text style={styles.itemSubTitle}>{subTitle}</Text>}
+      </View>
+
+      <View style={styles.itemAction}>
+        {type === "navigate" && (
+          <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+        )}
+        {type === "switch" && (
+          <Switch
+            value={switchValue}
+            onValueChange={onSwitchChange}
+            trackColor={{ false: "#E2E8F0", true: "#10B981" }}
+            thumbColor="#FFF"
+          />
+        )}
+        {type === "value" && (
+          <Text style={styles.itemValueText}>{valueText}</Text>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+// ==========================================
+// 2. MÀN HÌNH CHÍNH (LOGIC GIỮ NGUYÊN)
+// ==========================================
 
 export default function SettingsScreen() {
   const router = useRouter();
+
+  // State logic cũ giữ nguyên (mặc dù bỏ QR nhưng vẫn giữ để không đụng logic)
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
 
   // STATE DỮ LIỆU NGƯỜI DÙNG THẬT
@@ -28,7 +110,7 @@ export default function SettingsScreen() {
   useEffect(() => {
     const loadUserProfile = async () => {
       try {
-        const profile = await authService.getCurrentUserProfile(); // Gọi API /users/me
+        const profile = await authService.getCurrentUserProfile();
         setUserData(profile);
       } catch (error) {
         console.error("Lỗi tải thông tin cài đặt:", error);
@@ -46,7 +128,7 @@ export default function SettingsScreen() {
         text: "Đăng xuất",
         style: "destructive",
         onPress: async () => {
-          await authService.logout(); // Xóa sạch token khi logout
+          await authService.logout();
           router.replace("/(auth)/login");
         },
       },
@@ -55,262 +137,123 @@ export default function SettingsScreen() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#F8FAFC",
+        }}
+      >
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Cài đặt</Text>
+      </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={styles.scrollContent}
       >
-        {/* A. HEADER & USER CARD - ĐÃ ĐỔI SANG DATA THẬT */}
-        <View style={styles.headerContainer}>
-          <Text style={styles.pageTitle}>Cài đặt</Text>
-
-          <LinearGradient
-            colors={[theme.colors.primary, "#1E40AF"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.userCard}
-          >
-            <View style={styles.userInfo}>
-              <View style={styles.avatarContainer}>
-                <Ionicons name="person" size={32} color="#FFF" />
-              </View>
-              <View>
-                <Text style={styles.userName}>
-                  {userData
-                    ? `${userData.firstName} ${userData.lastName}`
-                    : "Chưa cập nhật"}
-                </Text>
-                <Text style={styles.userEmail}>
-                  {userData?.email || "nguyenvana@aquatech.vn"}
-                </Text>
-                <View style={styles.roleBadge}>
-                  <MaterialCommunityIcons
-                    name="shield-check"
-                    size={12}
-                    color="#FFF"
-                  />
-                  <Text style={styles.roleText}>
-                    {userData?.roleName || "User"}
-                  </Text>
-                </View>
-              </View>
+        {/* A. THẺ PROFILE CARD */}
+        <LinearGradient
+          colors={["#3B82F6", "#1D4ED8"]} // Gradient xanh đậm sang trọng
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.profileCard}
+        >
+          <View style={styles.avatarPlaceholder}>
+            <Ionicons name="person" size={32} color="#3B82F6" />
+          </View>
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileName}>
+              {userData
+                ? `${userData.firstName} ${userData.lastName}`
+                : "Chưa cập nhật"}
+            </Text>
+            <Text style={styles.profileEmail}>
+              {userData?.email || "nguyenvana@aquatech.vn"}
+            </Text>
+            <View style={styles.roleBadge}>
+              <MaterialCommunityIcons
+                name="shield-check"
+                size={14}
+                color="#10B981"
+              />
+              <Text style={styles.roleText}>
+                {userData?.roleName || "Kỹ thuật viên"}
+              </Text>
             </View>
-          </LinearGradient>
-        </View>
+          </View>
+        </LinearGradient>
 
         {/* B. KHỐI 1: QUẢN LÝ TÀI KHOẢN */}
-        <View style={styles.section}>
-          <Text style={styles.sectionHeader}>QUẢN LÝ TÀI KHOẢN</Text>
-          <View style={styles.cardContainer}>
-            <SettingItem
-              icon="person-outline"
-              iconColor={theme.colors.primary}
-              iconBg="#E3F2FD"
-              title="Thông tin cá nhân"
-              subtitle="Xem và chỉnh sửa"
-              onPress={() => {}}
-            />
-            <Divider />
-            <SettingItem
-              icon="lock-closed-outline"
-              iconColor={theme.colors.warning}
-              iconBg="#FFF3E0"
-              title="Đổi mật khẩu"
-              subtitle="Cập nhật mật khẩu"
-              onPress={() => {}}
-            />
-            <Divider />
-            <SettingItem
-              icon="shield-checkmark-outline"
-              iconColor={theme.colors.success}
-              iconBg="#E8F5E9"
-              title="Vai trò"
-              subtitle="Không thể thay đổi"
-              rightElement={
-                <View
-                  style={[styles.statusBadge, { backgroundColor: "#E0F2F1" }]}
-                >
-                  <Text
-                    style={{
-                      color: "#00695C",
-                      fontSize: 12,
-                      fontWeight: "600",
-                    }}
-                  >
-                    {userData?.roleName || "Operator"}
-                  </Text>
-                </View>
-              }
-            />
-            <Divider />
-            <SettingItem
-              icon="log-out-outline"
-              iconColor={theme.colors.danger}
-              iconBg="#FFEBEE"
-              title="Đăng xuất"
-              titleStyle={{ color: theme.colors.danger }}
-              isDestructive
-              onPress={handleLogout}
-            />
-          </View>
+        <Text style={styles.sectionTitle}>QUẢN LÝ TÀI KHOẢN</Text>
+        <View style={styles.sectionBlock}>
+          <SettingItem
+            icon="lock-closed-outline"
+            iconColor="#F59E0B"
+            title="Đổi mật khẩu"
+            subTitle="Cập nhật mật khẩu"
+            type="navigate"
+            onPress={() => router.push("/changePassword")}
+          />
+          <SettingItem
+            icon="log-out-outline"
+            title="Đăng xuất"
+            type="action"
+            isDestructive={true}
+            hideBottomBorder={true}
+            onPress={handleLogout}
+          />
         </View>
 
-        {/* C. KHỐI 2: CẤU HÌNH CAMERA/QR */}
-        <View style={styles.section}>
-          <Text style={styles.sectionHeader}>CẤU HÌNH CAMERA/QR</Text>
-          <View style={styles.cardContainer}>
-            <View style={styles.cameraItemContainer}>
-              <SettingItem
-                icon="camera-outline"
-                iconColor={theme.colors.primary}
-                iconBg="#E3F2FD"
-                title="Quyền truy cập Camera"
-                subtitle="Cho phép quét QR và chụp ảnh"
-                hideArrow
-              />
-              <View style={styles.permissionStatusRow}>
-                <Text style={styles.permissionLabel}>Trạng thái</Text>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Ionicons
-                    name="checkmark"
-                    size={14}
-                    color={theme.colors.success}
-                    style={{ marginRight: 4 }}
-                  />
-                  <Text
-                    style={{
-                      color: theme.colors.success,
-                      fontWeight: "600",
-                      fontSize: 13,
-                    }}
-                  >
-                    Đã cho phép
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            <Divider />
-
-            <SettingItem
-              icon="volume-high-outline"
-              iconColor={theme.colors.warning}
-              iconBg="#FFF3E0"
-              title="Âm thanh quét QR"
-              subtitle="Phát âm khi quét thành công"
-              hideArrow
-              rightElement={
-                <Switch
-                  trackColor={{ false: "#767577", true: theme.colors.success }}
-                  thumbColor={"#f4f3f4"}
-                  onValueChange={setIsSoundEnabled}
-                  value={isSoundEnabled}
-                />
-              }
-            />
-          </View>
+        {/* C. KHỐI 2: TRỢ GIÚP & THÔNG TIN (Đã bỏ Camera/QR) */}
+        <Text style={styles.sectionTitle}>TRỢ GIÚP & THÔNG TIN</Text>
+        <View style={styles.sectionBlock}>
+          <SettingItem
+            icon="help-circle-outline"
+            iconColor="#3B82F6"
+            title="Hướng dẫn sử dụng"
+            subTitle="Tài liệu Mobile App"
+            type="navigate"
+            onPress={() => router.push("/userGuide")}
+          />
+          <SettingItem
+            icon="call-outline"
+            iconColor="#10B981"
+            title="Liên hệ Hỗ trợ"
+            subTitle="support@aquatech.vn"
+            type="navigate"
+            onPress={() => router.push("/support")}
+          />
+          <SettingItem
+            icon="information-circle-outline"
+            iconColor="#64748B"
+            title="Phiên bản ứng dụng"
+            subTitle="Build info"
+            type="navigate" // <-- Đổi thành navigate để có thể bấm vào
+            valueText="v1.2.3"
+            onPress={() => router.push("/appVersion")}
+          />
+          <SettingItem
+            icon="document-text-outline"
+            iconColor="#F59E0B"
+            title="Điều khoản & Chính sách"
+            subTitle="Terms of Service & Privacy"
+            type="navigate"
+            hideBottomBorder={true}
+            onPress={() => router.push("/terms")}
+          />
         </View>
 
-        {/* D. KHỐI 3: TRỢ GIÚP & THÔNG TIN */}
-        <View style={styles.section}>
-          <Text style={styles.sectionHeader}>TRỢ GIÚP & THÔNG TIN</Text>
-          <View style={styles.cardContainer}>
-            <SettingItem
-              icon="help-circle-outline"
-              iconColor={theme.colors.primary}
-              iconBg="#E3F2FD"
-              title="Hướng dẫn sử dụng"
-              subtitle="Tài liệu Mobile App"
-              onPress={() => {}}
-            />
-            <Divider />
-            <SettingItem
-              icon="call-outline"
-              iconColor={theme.colors.secondary}
-              iconBg="#E0F2F1"
-              title="Liên hệ Hỗ trợ"
-              subtitle="support@aquatech.vn"
-              onPress={() => {}}
-            />
-            <Divider />
-            <SettingItem
-              icon="information-circle-outline"
-              iconColor={theme.colors.textSecondary}
-              iconBg="#F3F4F6"
-              title="Phiên bản ứng dụng"
-              subtitle="Build info"
-              hideArrow
-              rightElement={
-                <Text
-                  style={{ color: theme.colors.textSecondary, fontSize: 13 }}
-                >
-                  v1.2.3
-                </Text>
-              }
-            />
-            <Divider />
-            <SettingItem
-              icon="document-text-outline"
-              iconColor="#F59E0B"
-              iconBg="#FEF3C7"
-              title="Điều khoản & Chính sách"
-              subtitle="Terms of Service & Privacy"
-              onPress={() => {}}
-            />
-          </View>
-        </View>
+        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-// ------------------- COMPONENTS CON & STYLES (GIỮ NGUYÊN) ------------------- //
-
-const SettingItem = ({
-  icon,
-  iconColor,
-  iconBg,
-  title,
-  subtitle,
-  rightElement,
-  hideArrow,
-  onPress,
-  titleStyle,
-  isDestructive,
-}: any) => (
-  <TouchableOpacity
-    style={styles.itemContainer}
-    onPress={onPress}
-    disabled={!onPress && !isDestructive}
-    activeOpacity={0.7}
-  >
-    <View style={styles.itemLeft}>
-      <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
-        <Ionicons name={icon} size={22} color={iconColor} />
-      </View>
-      <View style={{ marginLeft: 12 }}>
-        <Text style={[styles.itemTitle, titleStyle]}>{title}</Text>
-        {subtitle && <Text style={styles.itemSubtitle}>{subtitle}</Text>}
-      </View>
-    </View>
-    <View style={styles.itemRight}>
-      {rightElement}
-      {!hideArrow && !rightElement && (
-        <Ionicons
-          name="chevron-forward"
-          size={20}
-          color={isDestructive ? theme.colors.danger : "#CBD5E1"}
-        />
-      )}
-    </View>
-  </TouchableOpacity>
-);
-
-const Divider = () => <View style={styles.divider} />;
