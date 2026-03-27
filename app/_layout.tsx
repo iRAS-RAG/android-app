@@ -51,6 +51,23 @@ export default function RootLayout() {
               name="batchDetail/[id]"
               options={{ headerShown: false }}
             />
+            <Stack.Screen
+              name="changePassword/index"
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="userGuide/index"
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="appVersion/index"
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen name="terms/index" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="support/index"
+              options={{ headerShown: false }}
+            />
           </Stack>
         </LinearGradient>
       </AuthProvider>

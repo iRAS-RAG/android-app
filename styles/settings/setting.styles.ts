@@ -1,101 +1,137 @@
 import { theme } from "@/theme";
 import { StyleSheet } from "react-native";
 export const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
-  headerContainer: {
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#F8FAFC", // Nền xám nhạt hiện đại
+  },
+  header: {
     paddingHorizontal: 20,
     paddingTop: 20,
-    marginBottom: 20,
-    backgroundColor: "#FFF",
+    paddingBottom: 15,
+    backgroundColor: "#F8FAFC",
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#1E293B",
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
     paddingBottom: 20,
   },
-  pageTitle: {
-    ...theme.typography.h2,
-    color: theme.colors.textPrimary,
-    marginBottom: 20,
-  },
-  userCard: {
-    padding: 20,
+
+  // Profile Card Styles
+  profileCard: {
     borderRadius: 16,
-    elevation: 4,
-    shadowColor: theme.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    padding: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 30,
+    shadowColor: "#3B82F6",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6,
   },
-  userInfo: { flexDirection: "row", alignItems: "center" },
-  avatarContainer: {
+  avatarPlaceholder: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "#EFF6FF",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 15,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
+    marginRight: 16,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.2)",
   },
-  userName: { fontSize: 18, fontWeight: "700", color: "#FFF", marginBottom: 4 },
-  userEmail: { fontSize: 13, color: "rgba(255,255,255,0.9)", marginBottom: 8 },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  profileEmail: {
+    color: "#DBEAFE",
+    fontSize: 13,
+    marginBottom: 8,
+  },
   roleBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.2)",
-    paddingHorizontal: 8,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 20, // Bo tròn badge
     alignSelf: "flex-start",
   },
-  roleText: { color: "#FFF", fontSize: 11, fontWeight: "600", marginLeft: 4 },
-  section: { marginBottom: 24, paddingHorizontal: 20 },
-  sectionHeader: {
+  roleText: {
+    color: "#10B981",
     fontSize: 12,
     fontWeight: "700",
-    color: theme.colors.textSecondary,
+    marginLeft: 4,
+  },
+
+  // Section Styles
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#64748B",
     marginBottom: 10,
-    textTransform: "uppercase",
+    marginLeft: 4,
     letterSpacing: 0.5,
+    textTransform: "uppercase",
   },
-  cardContainer: {
-    backgroundColor: "#FFF",
-    borderRadius: 16,
-    overflow: "hidden",
+  sectionBlock: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    marginBottom: 24,
+    paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: "#F1F5F9",
+    borderColor: "#E2E8F0",
+    overflow: "hidden",
   },
+
+  // Setting Item Styles
   itemContainer: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
   },
-  itemLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
   iconBox: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
+    marginRight: 14,
+  },
+  itemContent: {
+    flex: 1,
+    justifyContent: "center",
   },
   itemTitle: {
     fontSize: 15,
     fontWeight: "600",
-    color: theme.colors.textPrimary,
     marginBottom: 2,
   },
-  itemSubtitle: { fontSize: 12, color: theme.colors.textSecondary },
-  itemRight: { flexDirection: "row", alignItems: "center" },
-  divider: { height: 1, backgroundColor: "#F1F5F9", marginLeft: 68 },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  cameraItemContainer: { backgroundColor: "#FFF" },
-  permissionStatusRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    paddingLeft: 68,
-    marginTop: -8,
+  itemSubTitle: {
+    fontSize: 12,
+    color: "#94A3B8",
   },
-  permissionLabel: { fontSize: 12, color: theme.colors.textSecondary },
+  itemAction: {
+    marginLeft: 10,
+    justifyContent: "center",
+    alignItems: "flex-end",
+  },
+  itemValueText: {
+    fontSize: 14,
+    color: "#64748B",
+    fontWeight: "500",
+  },
 });
