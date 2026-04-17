@@ -17,12 +17,15 @@ export const alertService = {
         desc:
           item.description ||
           `Phát hiện chỉ số bất thường tại ${item.fishTankName || "Bể nuôi"}`,
-        value:
-          item.value !== undefined && item.value !== null
-            ? `${item.value}`
-            : "N/A",
 
-        // SỬA Ở ĐÂY: Nối MinThreshold và MaxThreshold lại thành chuỗi
+        // SỬA LỖI N/A Ở ĐÂY: Sử dụng triggerValue từ Backend trả về
+        value:
+          item.triggerValue !== undefined && item.triggerValue !== null
+            ? `${item.triggerValue}`
+            : item.value !== undefined && item.value !== null
+              ? `${item.value}`
+              : "N/A",
+
         limit: `${item.minThreshold ?? 0} - ${item.maxThreshold ?? 0}`,
 
         level: mapSeverity(item.status),
@@ -46,8 +49,8 @@ export const alertService = {
 
       if (!item) return null;
 
-      // 1. Lấy các giá trị (Sửa tên biến cho khớp với JSON trả về từ AlertDto)
-      const currentValue = item.value || 0;
+      // SỬA LỖI Ở ĐÂY: Lấy giá trị từ triggerValue
+      const currentValue = item.triggerValue ?? item.value ?? 0;
       const min = item.minThreshold ?? 0;
       const max = item.maxThreshold ?? 0;
 
@@ -82,7 +85,7 @@ export const alertService = {
         type: "Sensor",
 
         // --- ĐỔ DỮ LIỆU ĐÃ TÍNH TOÁN RA UI (Dành cho các ô CompBox) ---
-        unit: item.unit || "mg/L",
+        unit: item.unitOfMeasure || item.unit || "mg/L", // Sửa thêm unitOfMeasure cho chuẩn DTO
         optimalValue: `${min} - ${max}`,
         safeLimit: limitText,
         exceededPercent: overPercentage,

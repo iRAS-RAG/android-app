@@ -1,6 +1,6 @@
 import { tankDetailApi } from "../api/tankDetailApi";
 
-// Định nghĩa Interface dựa trên TankSensorLatestDataDto thực tế
+// Định nghĩa Interface khớp 100% với TankSensorLatestDataValueDto của Backend
 interface SensorLatestData {
   sensorId: string;
   sensorName: string;
@@ -8,11 +8,14 @@ interface SensorLatestData {
   unitOfMeasure: string;
   measureType: string;
   latestData: {
-    latestValue: number | null;
-    isWarning: boolean | null;
+    latestAvg: number; // Backend trả về latestAvg thay vì latestValue
+    latestMin: number;
+    latestMax: number;
+    hasWarning: boolean | null; // Backend trả về hasWarning
     recordedAt: string | null;
   } | null;
 }
+
 export const tankDetailService = {
   getTankFullDetails: async (tankId: string) => {
     try {
@@ -27,9 +30,8 @@ export const tankDetailService = {
       rawMetrics.forEach((m) => {
         const typeName = m.sensorTypeName;
         if (!latestMetricsMap.has(typeName)) {
-          latestMetricsMap.set(typeName, m); // Lưu cảm biến đầu tiên tìm thấy
+          latestMetricsMap.set(typeName, m);
         } else {
-          // Nếu cảm biến đã lưu KHÔNG có data, nhưng cảm biến hiện tại CÓ data -> Ưu tiên lấy cái có data
           const existing = latestMetricsMap.get(typeName);
           const existingHasData =
             existing?.latestData !== null && existing?.latestData !== undefined;
@@ -60,17 +62,23 @@ export const tankDetailService = {
           const logs = logsRes.data?.data || [];
 
           if (Array.isArray(logs) && logs.length > 0) {
+            // SỬA Ở ĐÂY: Dùng l.average thay vì l.data
             const validLogs = logs
-              .filter((l: any) => l.data !== null && !isNaN(Number(l.data)))
+              .filter(
+                (l: any) => l.average !== null && !isNaN(Number(l.average)),
+              )
               .slice(0, 6)
               .reverse();
 
             if (validLogs.length > 0) {
               initialChartData = {
                 labels: validLogs.map(
-                  (l: any) => new Date(l.createdAt).getHours() + "h",
+                  (l: any) =>
+                    new Date(l.createdAt || l.periodStart).getHours() + "h",
                 ),
-                datasets: [{ data: validLogs.map((l: any) => Number(l.data)) }],
+                datasets: [
+                  { data: validLogs.map((l: any) => Number(l.average)) },
+                ],
               };
             }
           }
@@ -87,14 +95,18 @@ export const tankDetailService = {
         })),
         metrics: latestMetrics.map((m) => {
           const hasData = m.latestData !== null && m.latestData !== undefined;
-          const val = hasData ? m.latestData?.latestValue : null;
+          // SỬA Ở ĐÂY: Lấy latestAvg
+          const val = hasData ? m.latestData?.latestAvg : null;
 
           return {
             id: m.sensorId,
             label: m.sensorTypeName,
-            value: val !== null && val !== undefined ? val.toString() : "0",
-            unit: m.unitOfMeasure,
-            color: hasData && m.latestData?.isWarning ? "#EF4444" : "#3B82F6",
+            value: val !== null && val !== undefined ? val.toFixed(1) : "0",
+            unit:
+              m.unitOfMeasure ||
+              (m.sensorTypeName?.includes("Nhiệt độ") ? "°C" : ""),
+            // SỬA Ở ĐÂY: Lấy hasWarning
+            color: hasData && m.latestData?.hasWarning ? "#EF4444" : "#3B82F6",
             icon: m.sensorTypeName?.includes("Nhiệt độ")
               ? "thermometer"
               : m.sensorTypeName?.includes("pH")
