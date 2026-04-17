@@ -85,22 +85,23 @@ export default function TankDetailScreen() {
       const logs = logsRes.data?.data || [];
 
       if (Array.isArray(logs) && logs.length > 0) {
-        // Sử dụng trường 'data' từ BE làm giá trị đo
+        // SỬA Ở ĐÂY: Sử dụng trường 'average' từ BE làm giá trị đo thay vì 'data'
         const validLogs = logs.filter(
-          (l: any) => l.data !== null && !isNaN(Number(l.data)),
+          (l: any) => l.average !== null && !isNaN(Number(l.average)),
         );
         const displayLogs = validLogs.slice(0, 6).reverse();
 
         if (displayLogs.length > 0) {
           setChartData({
             labels: displayLogs.map((l: any) => {
-              // Sử dụng 'createdAt' làm mốc thời gian
-              const date = new Date(l.createdAt);
+              // Sử dụng 'createdAt' hoặc 'periodStart' làm mốc thời gian
+              const date = new Date(l.createdAt || l.periodStart);
               return isNaN(date.getTime()) ? "--" : `${date.getHours()}h`;
             }),
             datasets: [
               {
-                data: displayLogs.map((l: any) => Number(l.data)),
+                // SỬA Ở ĐÂY: Dùng l.average
+                data: displayLogs.map((l: any) => Number(l.average)),
               },
             ],
           });
