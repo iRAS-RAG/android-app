@@ -51,7 +51,7 @@ export const tankDetailService = {
       try {
         const tankRes = await tankDetailApi.getTankInfo(tankId);
         if (tankRes.data?.data) tankInfo = tankRes.data.data;
-      } catch (e) {
+      } catch {
         console.warn("Lỗi tải thông tin bể (có thể do quyền)");
       }
 

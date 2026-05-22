@@ -29,6 +29,14 @@ export const tankDetailApi = {
     });
   },
 
+  // Bật/Tắt thiết bị điều khiển thủ công
+  toggleControlDevice: (deviceId: string, state: boolean) => {
+    return axiosClient.post(
+      `/hardwares/control-devices/${deviceId}/toggle`,
+      { state },
+    );
+  },
+
   // Lấy ngưỡng của loài (SpeciesThresholdController) [Route: api/species-threshholds]
   getSpeciesThresholds: (speciesId: string) => {
     return axiosClient.get(`/species-threshholds`, {

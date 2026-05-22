@@ -332,25 +332,28 @@ export default function BatchDetailScreen() {
           </View>
         </View>
 
-        {/* NÚT THAO TÁC - Ẩn đi nếu lô đã thu hoạch (dùng cờ isHarvested) */}
-        {!statusConfig.isHarvested && (
-          <TouchableOpacity
-            style={[styles.actionButton, styles.shadowPrimary]}
-            onPress={() =>
-              router.push({ pathname: "/(tabs)", params: { batchId: id } })
-            }
-          >
-            <Ionicons
-              name="create-outline"
-              size={20}
-              color={theme.colors.white}
-              style={{ marginRight: 8 }}
-            />
-            <Text style={styles.actionButtonText}>
-              Ghi nhận vận hành cho lô này
-            </Text>
-          </TouchableOpacity>
-        )}
+        {/* NÚT THAO TÁC - Lô đã thu hoạch vẫn hiển thị nhưng bị làm mờ, không bấm được */}
+        <TouchableOpacity
+          style={[
+            styles.actionButton,
+            statusConfig.isHarvested
+              ? styles.actionButtonDisabled
+              : styles.shadowPrimary,
+          ]}
+          activeOpacity={0.85}
+          disabled={statusConfig.isHarvested}
+          onPress={() => router.push("/warehouse")}
+        >
+          <Ionicons
+            name="create-outline"
+            size={20}
+            color={theme.colors.white}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={styles.actionButtonText}>
+            Ghi nhận vận hành cho lô này
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -539,6 +542,9 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary,
     borderRadius: 12,
     marginTop: 8,
+  },
+  actionButtonDisabled: {
+    opacity: 0.5,
   },
   actionButtonText: {
     color: theme.colors.white,

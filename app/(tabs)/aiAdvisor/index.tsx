@@ -1,8 +1,11 @@
 import { styles } from "@/styles/ai/aiAdvisor.styles";
 import { theme } from "@/theme";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import { useRouter } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -12,15 +15,127 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { advisoryApi } from "@/api/advisoryApi";
+
+interface Exchange {
+  question: string;
+  answer: string;
+  isOffTopic: boolean;
+  citations: string[];
+  error: boolean;
+}
 
 export default function AIAdvisorScreen() {
+  const router = useRouter();
   const [message, setMessage] = useState("");
+  const [tanks, setTanks] = useState<any[]>([]);
+  const [loadingTanks, setLoadingTanks] = useState(true);
+  const [selectedTank, setSelectedTank] = useState<any | null>(null);
+  const [sending, setSending] = useState(false);
+  const [exchanges, setExchanges] = useState<Exchange[]>([]);
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  // Tải danh sách bể nuôi để người dùng chọn trước khi chat
+  useEffect(() => {
+    const loadTanks = async () => {
+      try {
+        const res = await advisoryApi.getTanks();
+        setTanks(res.data?.data || []);
+      } catch (error) {
+        console.error("Lỗi tải danh sách bể nuôi:", error);
+      } finally {
+        setLoadingTanks(false);
+      }
+    };
+    loadTanks();
+  }, []);
+
+  const handleSelectTank = (tank: any) => {
+    setSelectedTank(tank);
+    setExchanges([]);
+    setMessage("");
+  };
+
+  const handleChangeTank = () => {
+    setSelectedTank(null);
+    setExchanges([]);
+    setMessage("");
+  };
+
+  // Gửi câu hỏi tới AdvisoryController: POST /api/advisory/chat
+  const handleSend = async () => {
+    const question = message.trim();
+    if (!selectedTank || !question || sending) return;
+
+    setMessage("");
+    setSending(true);
+
+    // Thêm lượt hỏi mới vào cuối lịch sử hội thoại (chưa có câu trả lời)
+    setExchanges((prev) => [
+      ...prev,
+      {
+        question,
+        answer: "",
+        isOffTopic: false,
+        citations: [],
+        error: false,
+      },
+    ]);
+
+    try {
+      const res = await advisoryApi.chat(selectedTank.id, question);
+      const data = res.data || {};
+      // Cập nhật câu trả lời vào lượt cuối cùng
+      setExchanges((prev) => {
+        const next = [...prev];
+        const last = next.length - 1;
+        next[last] = {
+          ...next[last],
+          answer:
+            (data.answer || "").trim() ||
+            "Hệ thống chưa trả về câu trả lời. Vui lòng thử lại.",
+          isOffTopic: !!data.isOffTopic,
+          citations: Array.isArray(data.citations) ? data.citations : [],
+          error: false,
+        };
+        return next;
+      });
+    } catch (err: any) {
+      console.error("Lỗi gọi advisory chat:", err);
+      const status = err?.response?.status;
+      const apiMsg = err?.response?.data?.message;
+      let reason: string;
+      if (status === 403) {
+        reason =
+          (apiMsg || "Bạn không có quyền truy cập bể nuôi này.") +
+          " Vui lòng chọn bể khác hoặc liên hệ quản trị viên để được cấp quyền.";
+      } else if (status === 401) {
+        reason = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
+      } else {
+        reason =
+          apiMsg || "Không thể kết nối tới trợ lý AI. Vui lòng thử lại.";
+      }
+      Alert.alert("Không thể tư vấn", reason);
+      setExchanges((prev) => {
+        const next = [...prev];
+        const last = next.length - 1;
+        next[last] = {
+          ...next[last],
+          answer: reason,
+          error: true,
+        };
+        return next;
+      });
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
       {/* 1. KHU VỰC DANH TÍNH AI */}
       <View style={styles.header}>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color="#334155" />
         </TouchableOpacity>
         <View style={styles.aiIdentity}>
@@ -35,135 +150,252 @@ export default function AIAdvisorScreen() {
             </View>
           </View>
         </View>
-        <TouchableOpacity>
-          <Ionicons name="ellipsis-vertical" size={20} color="#64748B" />
-        </TouchableOpacity>
+        {selectedTank ? (
+          <TouchableOpacity
+            style={styles.changeTankBtn}
+            onPress={handleChangeTank}
+            disabled={sending}
+          >
+            <Feather
+              name="refresh-ccw"
+              size={13}
+              color={theme.colors.primary}
+            />
+            <Text style={styles.changeTankText}>Đổi bể</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 24 }} />
+        )}
       </View>
 
       {/* 2. KHU VỰC HỘI THOẠI CHÍNH */}
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={styles.chatContainer}
         showsVerticalScrollIndicator={false}
+        onContentSizeChange={() =>
+          scrollViewRef.current?.scrollToEnd({ animated: true })
+        }
       >
-        {/* Lời chào từ AI */}
+        {/* Lời chào từ AI + chọn bể nuôi */}
         <View style={styles.botMsgContainer}>
           <View style={styles.msgBubbleBot}>
             <Text style={styles.msgTextBot}>
-              Xin chào! Tôi là AI Advisor của hệ thống iRAS-RAG. Tôi có thể giúp
-              gì cho bạn hôm nay?
+              Xin chào, chúc bạn một ngày tốt lành! Vui lòng chọn một bể nuôi
+              bên dưới để tôi bắt đầu phân tích trạng thái và tư vấn cho bạn.
             </Text>
           </View>
-          <Text style={styles.msgTime}>08:54</Text>
-        </View>
 
-        {/* Truy vấn từ Kỹ thuật viên */}
-        <View style={styles.userMsgContainer}>
-          <View style={styles.msgBubbleUser}>
-            <Text style={styles.msgTextUser}>
-              Máy bơm #2 ở bể A-01 đang rung bất thường, tôi nên làm gì?
-            </Text>
-          </View>
-          <Text style={styles.msgTimeUser}>08:55</Text>
-        </View>
-
-        {/* Phân tích thông minh từ AI */}
-        <View style={styles.botMsgContainer}>
-          <View style={styles.msgBubbleBot}>
-            <Text style={styles.msgTextBot}>
-              Tôi hiểu vấn đề của bạn. Máy bơm #2 đang có mức rung 4.8 mm/s, cao
-              hơn ngưỡng an toàn (3.5 mm/s). Đây là hướng dẫn xử lý từng bước:
-            </Text>
-
-            {/* Hướng dẫn xử lý SOP */}
-            <View style={styles.sopSection}>
-              <View style={styles.sopHeader}>
-                <Feather
-                  name="activity"
-                  size={16}
+          {/* Danh sách bể để chọn (ẩn sau khi đã chọn) */}
+          {!selectedTank && (
+            <View style={styles.tankChoiceWrap}>
+              {loadingTanks ? (
+                <ActivityIndicator
+                  size="small"
                   color={theme.colors.primary}
+                  style={{ marginTop: 12 }}
                 />
-                <Text style={styles.sopTitle}>Hướng dẫn từng bước</Text>
-              </View>
-              <View style={styles.sopCard}>
-                <Ionicons
-                  name="checkmark-circle"
-                  size={20}
-                  color={theme.colors.success}
-                />
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={styles.stepTitle}>
-                    Bước 1: Kiểm tra nguồn điện
-                  </Text>
-                  <Text style={styles.stepDesc}>
-                    Tắt nguồn điện và đảm bảo an toàn trước khi kiểm tra.
-                  </Text>
+              ) : tanks.length === 0 ? (
+                <Text style={styles.emptyTankText}>
+                  Không tải được danh sách bể nuôi. Vui lòng thử lại.
+                </Text>
+              ) : (
+                tanks.map((tank) => {
+                  const hasAlert = tank.hasOpenAlert;
+                  return (
+                    <TouchableOpacity
+                      key={tank.id}
+                      activeOpacity={0.8}
+                      onPress={() => handleSelectTank(tank)}
+                      style={[
+                        styles.tankChip,
+                        hasAlert && styles.tankChipAlert,
+                      ]}
+                    >
+                      <Ionicons
+                        name="water"
+                        size={15}
+                        color={
+                          hasAlert
+                            ? theme.colors.danger
+                            : theme.colors.primary
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.tankChipText,
+                          hasAlert && { color: theme.colors.danger },
+                        ]}
+                      >
+                        {tank.name}
+                      </Text>
+                      {hasAlert && (
+                        <Ionicons
+                          name="warning"
+                          size={14}
+                          color={theme.colors.danger}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Bong bóng sẵn sàng (đã chọn bể nhưng chưa hỏi) */}
+        {selectedTank && exchanges.length === 0 && (
+          <View style={styles.botMsgContainer}>
+            <View style={styles.msgBubbleBot}>
+              <Text style={styles.msgTextBot}>
+                Tôi đã sẵn sàng phân tích cho{" "}
+                <Text
+                  style={{ fontWeight: "800", color: theme.colors.primary }}
+                >
+                  {selectedTank.name}
+                </Text>
+                . Bạn hãy nhập câu hỏi hoặc mô tả vấn đề bên dưới để tôi tư vấn
+                hướng xử lý.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Lịch sử hội thoại: hiển thị toàn bộ các lượt hỏi - đáp */}
+        {exchanges.map((ex, index) => {
+          const isLast = index === exchanges.length - 1;
+          const isWaiting = isLast && sending;
+
+          return (
+            <React.Fragment key={index}>
+              {/* Câu hỏi của người dùng */}
+              <View style={styles.userMsgContainer}>
+                <View style={styles.msgBubbleUser}>
+                  <Text style={styles.msgTextUser}>{ex.question}</Text>
                 </View>
-                <Text style={styles.stepTime}>5 phút</Text>
-              </View>
-            </View>
-
-            {/* Linh kiện gợi ý (Kho tích hợp) */}
-            <View style={styles.sparePartSection}>
-              <View style={styles.sopHeader}>
-                <Ionicons
-                  name="cube-outline"
-                  size={16}
-                  color={theme.colors.primary}
-                />
-                <Text style={styles.sopTitle}>Linh kiện gợi ý</Text>
               </View>
 
-              <SparePartCard
-                name="Bearing 6308"
-                code="BRG-6308-SKF"
-                qty="2"
-                price="450.000đ"
-                status="Có sẵn"
-              />
-              <SparePartCard
-                name="Impeller Pump P200"
-                code="IMP-P200-SS"
-                qty="1"
-                price="1.200.000đ"
-                status="Hết hàng"
-                isOut
-              />
-            </View>
-          </View>
-        </View>
+              {/* Câu trả lời của AI */}
+              <View style={styles.botMsgContainer}>
+                <View style={styles.msgBubbleBot}>
+                  {isWaiting ? (
+                    <View
+                      style={{ flexDirection: "row", alignItems: "center" }}
+                    >
+                      <ActivityIndicator
+                        size="small"
+                        color={theme.colors.primary}
+                      />
+                      <Text
+                        style={[
+                          styles.msgTextBot,
+                          { marginLeft: 8, opacity: 0.7 },
+                        ]}
+                      >
+                        Đang phân tích...
+                      </Text>
+                    </View>
+                  ) : (
+                    <>
+                      <Text
+                        style={[
+                          styles.msgTextBot,
+                          ex.error && { color: theme.colors.danger },
+                        ]}
+                      >
+                        {ex.answer}
+                      </Text>
+
+                      {ex.isOffTopic && !ex.error && (
+                        <Text
+                          style={{
+                            marginTop: 8,
+                            fontSize: 12,
+                            fontWeight: "600",
+                            color: theme.colors.warning,
+                          }}
+                        >
+                          ⚠ Câu hỏi nằm ngoài phạm vi tư vấn.
+                        </Text>
+                      )}
+
+                      {ex.citations.length > 0 && (
+                        <View style={{ marginTop: 10 }}>
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              fontWeight: "700",
+                              color: theme.colors.textSecondary,
+                            }}
+                          >
+                            Nguồn tham khảo:
+                          </Text>
+                          {ex.citations.map((c, i) => (
+                            <Text
+                              key={i}
+                              style={{
+                                fontSize: 11,
+                                color: theme.colors.textSecondary,
+                                marginTop: 2,
+                              }}
+                            >
+                              • {c}
+                            </Text>
+                          ))}
+                        </View>
+                      )}
+                    </>
+                  )}
+                </View>
+              </View>
+            </React.Fragment>
+          );
+        })}
       </ScrollView>
 
-      {/* 4. CÔNG CỤ HỖ TRỢ & NHẬP LIỆU */}
+      {/* 3. KHU VỰC NHẬP LIỆU */}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <View style={styles.inputArea}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.suggestionRow}
+          {!selectedTank && (
+            <Text style={styles.inputHint}>
+              Vui lòng chọn một bể nuôi ở trên để bắt đầu trò chuyện.
+            </Text>
+          )}
+          <View
+            style={[
+              styles.inputRow,
+              (!selectedTank || sending) && { opacity: 0.5 },
+            ]}
           >
-            <SuggestionTag label="Làm sao để giảm NH3?" />
-            <SuggestionTag label="Kiểm tra độ pH như thế nào?" />
-          </ScrollView>
-
-          <View style={styles.inputRow}>
-            <TouchableOpacity style={styles.iconBtn}>
-              <Feather name="mic" size={20} color="#64748B" />
-            </TouchableOpacity>
             <View style={styles.textInputWrapper}>
               <TextInput
-                placeholder="Nhập câu hỏi..."
+                placeholder={
+                  selectedTank
+                    ? `Nhập câu hỏi cho ${selectedTank.name}...`
+                    : "Chọn bể nuôi trước khi nhập..."
+                }
+                placeholderTextColor="#94A3B8"
                 style={styles.textInput}
                 value={message}
                 onChangeText={setMessage}
+                editable={!!selectedTank && !sending}
+                onSubmitEditing={handleSend}
+                returnKeyType="send"
               />
-              <TouchableOpacity>
-                <Ionicons name="attach" size={22} color="#64748B" />
-              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.sendBtn}>
-              <Ionicons name="send" size={20} color="#FFF" />
+            <TouchableOpacity
+              style={styles.sendBtn}
+              disabled={!selectedTank || sending || !message.trim()}
+              onPress={handleSend}
+            >
+              {sending ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <Ionicons name="send" size={20} color="#FFF" />
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -171,39 +403,3 @@ export default function AIAdvisorScreen() {
     </SafeAreaView>
   );
 }
-
-// Components con hỗ trợ
-const SparePartCard = ({ name, code, qty, price, status, isOut }: any) => (
-  <View style={styles.partCard}>
-    <View style={styles.partIcon}>
-      <MaterialCommunityIcons name="wrench-outline" size={20} color="#64748B" />
-    </View>
-    <View style={{ flex: 1, marginLeft: 12 }}>
-      <View style={styles.partHeaderRow}>
-        <Text style={styles.partName}>{name}</Text>
-        <Text
-          style={[
-            styles.partStatus,
-            { color: isOut ? theme.colors.danger : theme.colors.success },
-          ]}
-        >
-          {status}
-        </Text>
-      </View>
-      <Text style={styles.partSub}>Mã: {code}</Text>
-      <View style={styles.partFooter}>
-        <Text style={styles.partQty}>SL: {qty}</Text>
-        <Text style={styles.partPrice}>{price}</Text>
-      </View>
-      <TouchableOpacity style={styles.requestBtn} disabled={isOut}>
-        <Text style={styles.requestBtnText}>Yêu cầu xuất kho</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-);
-
-const SuggestionTag = ({ label }: { label: string }) => (
-  <TouchableOpacity style={styles.suggestionTag}>
-    <Text style={styles.suggestionText}>{label}</Text>
-  </TouchableOpacity>
-);
