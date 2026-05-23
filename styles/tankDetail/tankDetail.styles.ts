@@ -130,4 +130,98 @@ export const styles = StyleSheet.create({
     marginLeft: 2,
     fontWeight: "600",
   },
+
+  // Số lượng loại cảm biến hiển thị ở cuối tiêu đề
+  sensorCountInline: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: theme.colors.primary,
+  },
+
+  // Nút bật/tắt thiết bị điều khiển
+  toggleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginTop: 4,
+  },
+  toggleBtnText: {
+    fontSize: 13,
+    fontWeight: "700",
+    marginLeft: 6,
+  },
+  emptyDeviceText: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    fontStyle: "italic",
+  },
+
+  // Popup xác nhận bật/tắt thiết bị
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  confirmCard: {
+    width: "100%",
+    backgroundColor: "#FFF",
+    borderRadius: 16,
+    padding: 20,
+  },
+  confirmTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: theme.colors.textPrimary,
+    marginBottom: 10,
+  },
+  confirmDesc: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  warningBox: {
+    flexDirection: "row",
+    gap: 10,
+    backgroundColor: "#FFF7ED",
+    borderWidth: 1,
+    borderColor: "#FFEDD5",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 18,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 12,
+    color: "#9A3412",
+    lineHeight: 18,
+  },
+  confirmActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  confirmBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cancelBtn: {
+    backgroundColor: "#F1F5F9",
+  },
+  cancelBtnText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: theme.colors.textSecondary,
+  },
+  confirmBtnText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#FFF",
+  },
 });

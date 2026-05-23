@@ -217,6 +217,9 @@ export const styles = StyleSheet.create({
   inputArea: {
     backgroundColor: "#FFF",
     padding: 15,
+    // Chừa thêm khoảng trống phía dưới để nút AI nổi của tab bar
+    // không che mất ô nhập câu hỏi
+    paddingBottom: 55,
     borderTopWidth: 1,
     borderTopColor: "#F1F5F9",
   },
@@ -269,5 +272,63 @@ export const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary,
     justifyContent: "center",
     alignItems: "center",
+  },
+
+  // Nút đổi bể trên header
+  changeTankBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+  },
+  changeTankText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: theme.colors.primary,
+  },
+
+  // Khu vực chọn bể nuôi trước khi chat
+  tankChoiceWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 12,
+  },
+  emptyTankText: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    marginTop: 10,
+  },
+  tankChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 20,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+  tankChipAlert: {
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
+  },
+  tankChipText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: theme.colors.primary,
+  },
+
+  // Gợi ý dưới ô nhập khi chưa chọn bể
+  inputHint: {
+    fontSize: 11,
+    color: "#94A3B8",
+    textAlign: "center",
+    marginBottom: 8,
   },
 });

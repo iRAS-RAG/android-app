@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   Dimensions,
   RefreshControl,
+  Alert,
+  Modal,
 } from "react-native";
 import { LineChart } from "react-native-chart-kit";
 import { Ionicons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -47,6 +49,10 @@ export default function TankDetailScreen() {
   const [tankData, setTankData] = useState<any>(null);
   const [selectedSensorId, setSelectedSensorId] = useState<string | null>(null);
   const [chartData, setChartData] = useState<any>(null);
+
+  // Quản lý popup xác nhận bật/tắt thiết bị điều khiển
+  const [deviceToToggle, setDeviceToToggle] = useState<any>(null);
+  const [isToggling, setIsToggling] = useState(false);
 
   // 1. Tải toàn bộ dữ liệu lần đầu hoặc khi làm mới
   const loadFullData = async () => {
@@ -117,6 +123,28 @@ export default function TankDetailScreen() {
     }
   };
 
+  // 3. Xác nhận bật/tắt thiết bị điều khiển
+  const handleConfirmToggle = async () => {
+    if (!deviceToToggle) return;
+    setIsToggling(true);
+    try {
+      await tankDetailApi.toggleControlDevice(
+        deviceToToggle.id,
+        !deviceToToggle.status,
+      );
+      await loadFullData();
+    } catch (error) {
+      console.error("Lỗi chuyển trạng thái thiết bị:", error);
+      Alert.alert(
+        "Lỗi",
+        "Không thể chuyển trạng thái thiết bị. Vui lòng thử lại.",
+      );
+    } finally {
+      setIsToggling(false);
+      setDeviceToToggle(null);
+    }
+  };
+
   useEffect(() => {
     loadFullData();
   }, [id]);
@@ -170,7 +198,10 @@ export default function TankDetailScreen() {
         {/* 1. Danh sách cảm biến (Sử dụng dữ liệu từ TankSensorLatestDataDto) */}
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionLabel}>
-            Cảm biến hiện tại (Chọn để xem biểu đồ)
+            Cảm biến hiện tại (Chọn để xem biểu đồ){" "}
+            <Text style={styles.sensorCountInline}>
+              ({tankData?.metrics?.length || 0} loại)
+            </Text>
           </Text>
           <ScrollView
             horizontal
@@ -268,77 +299,77 @@ export default function TankDetailScreen() {
           )}
         </View>
 
-        {/* 3. Trạng thái thiết bị (Đồng bộ từ HardwareController) */}
+        {/* 3. Trạng thái thiết bị điều khiển (Đồng bộ từ HardwareController) */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionLabel}>Thiết bị vận hành</Text>
-          {tankData?.pumps.map((device: any) => (
-            <View key={device.id} style={styles.pumpContainer}>
-              <View style={styles.pumpHeader}>
-                <MaterialCommunityIcons
-                  name={device.status ? "engine" : "engine-off"}
-                  size={24}
-                  color={
-                    device.status ? theme.colors.success : theme.colors.danger
-                  }
-                />
-                <View style={{ marginLeft: 10 }}>
-                  <Text style={styles.pumpTitle}>{device.name}</Text>
+          <Text style={styles.sectionLabel}>
+            Trạng thái thiết bị điều khiển
+          </Text>
+          {tankData?.pumps && tankData.pumps.length > 0 ? (
+            tankData.pumps.map((device: any) => (
+              <View key={device.id} style={styles.pumpContainer}>
+                <View style={styles.pumpHeader}>
+                  <MaterialCommunityIcons
+                    name={device.status ? "engine" : "engine-off"}
+                    size={24}
+                    color={
+                      device.status
+                        ? theme.colors.success
+                        : theme.colors.danger
+                    }
+                  />
+                  <View style={{ marginLeft: 10, flex: 1 }}>
+                    <Text style={styles.pumpTitle}>
+                      {device.controlDeviceTypeName}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.pumpStatus,
+                        {
+                          color: device.status
+                            ? theme.colors.success
+                            : theme.colors.danger,
+                        },
+                      ]}
+                    >
+                      ● {device.status ? "Đang hoạt động" : "Đã tắt"}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.toggleBtn,
+                    {
+                      backgroundColor: device.status
+                        ? "#FEF2F2"
+                        : theme.colors.primary,
+                    },
+                  ]}
+                  activeOpacity={0.8}
+                  onPress={() => setDeviceToToggle(device)}
+                >
+                  <MaterialCommunityIcons
+                    name="power"
+                    size={16}
+                    color={device.status ? theme.colors.danger : "#FFF"}
+                  />
                   <Text
                     style={[
-                      styles.pumpStatus,
+                      styles.toggleBtnText,
                       {
-                        color: device.status
-                          ? theme.colors.success
-                          : theme.colors.danger,
+                        color: device.status ? theme.colors.danger : "#FFF",
                       },
                     ]}
                   >
-                    ● {device.status ? "Đang hoạt động" : "Ngừng hoạt động"}
+                    {device.status ? "Tắt thiết bị" : "Bật thiết bị"}
                   </Text>
-                </View>
+                </TouchableOpacity>
               </View>
-              <View style={styles.pumpGrid}>
-                <View style={styles.gridItem}>
-                  <MaterialCommunityIcons
-                    name="lightning-bolt-outline"
-                    size={16}
-                    color={theme.colors.textSecondary}
-                  />
-                  <Text
-                    style={{
-                      fontSize: 10,
-                      color: theme.colors.textSecondary,
-                      marginTop: 4,
-                    }}
-                  >
-                    Dòng điện
-                  </Text>
-                  <Text style={{ fontSize: 13, fontWeight: "700" }}>
-                    {device.currentPower || 0}W
-                  </Text>
-                </View>
-                <View style={styles.gridItem}>
-                  <MaterialCommunityIcons
-                    name="cog-outline"
-                    size={16}
-                    color={theme.colors.textSecondary}
-                  />
-                  <Text
-                    style={{
-                      fontSize: 10,
-                      color: theme.colors.textSecondary,
-                      marginTop: 4,
-                    }}
-                  >
-                    Loại thiết bị
-                  </Text>
-                  <Text style={{ fontSize: 13, fontWeight: "700" }}>
-                    {device.controlDeviceTypeName}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          ))}
+            ))
+          ) : (
+            <Text style={styles.emptyDeviceText}>
+              Bể này chưa có thiết bị điều khiển nào.
+            </Text>
+          )}
         </View>
 
         {/* 4. AI Advisor */}
@@ -359,6 +390,86 @@ export default function TankDetailScreen() {
           </View>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* POPUP XÁC NHẬN BẬT/TẮT THIẾT BỊ ĐIỀU KHIỂN */}
+      <Modal
+        visible={!!deviceToToggle}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!isToggling) setDeviceToToggle(null);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>
+              Xác nhận {deviceToToggle?.status ? "tắt" : "bật"} thiết bị
+            </Text>
+            <Text style={styles.confirmDesc}>
+              Bạn sắp{" "}
+              <Text
+                style={{
+                  fontWeight: "800",
+                  color: deviceToToggle?.status
+                    ? theme.colors.danger
+                    : theme.colors.success,
+                }}
+              >
+                {deviceToToggle?.status ? "TẮT" : "BẬT"}
+              </Text>{" "}
+              thiết bị{" "}
+              <Text
+                style={{ fontWeight: "800", color: theme.colors.textPrimary }}
+              >
+                {deviceToToggle?.controlDeviceTypeName}
+              </Text>
+              .
+            </Text>
+            <View style={styles.warningBox}>
+              <MaterialCommunityIcons
+                name="alert-outline"
+                size={20}
+                color="#EA580C"
+              />
+              <Text style={styles.warningText}>
+                Đây là thiết bị đang vận hành trực tiếp trong môi trường bể
+                nuôi. Bật/tắt sai thời điểm có thể làm thay đổi đột ngột điều
+                kiện nước và gây nguy hiểm cho vật nuôi. Vui lòng kiểm tra kỹ
+                tình trạng bể trước khi xác nhận.
+              </Text>
+            </View>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity
+                style={[styles.confirmBtn, styles.cancelBtn]}
+                onPress={() => setDeviceToToggle(null)}
+                disabled={isToggling}
+              >
+                <Text style={styles.cancelBtnText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.confirmBtn,
+                  {
+                    backgroundColor: deviceToToggle?.status
+                      ? theme.colors.danger
+                      : theme.colors.primary,
+                  },
+                ]}
+                onPress={handleConfirmToggle}
+                disabled={isToggling}
+              >
+                {isToggling ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Text style={styles.confirmBtnText}>
+                    {deviceToToggle?.status ? "Xác nhận tắt" : "Xác nhận bật"}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
