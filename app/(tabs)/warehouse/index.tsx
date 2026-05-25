@@ -408,26 +408,6 @@ export default function OperationsScreen() {
                 )}
               </View>
 
-              {(activeTab === "feeding" || activeTab === "mortality") && (
-                <TouchableOpacity
-                  onPress={() =>
-                    activeTab === "feeding"
-                      ? openFeedingModal(item)
-                      : openMortalityModal(item)
-                  }
-                  style={styles.editButton}
-                >
-                  <Ionicons
-                    name="create-outline"
-                    size={22}
-                    color={
-                      activeTab === "mortality"
-                        ? theme.colors.danger
-                        : theme.colors.primary
-                    }
-                  />
-                </TouchableOpacity>
-              )}
             </View>
           </View>
         )}
