@@ -135,7 +135,9 @@ export const operationsService = {
         batchId: log.batchId,
         tank: log.batchName || "Lô nuôi",
         time: log.date ? new Date(log.date).toLocaleString("vi-VN") : "N/A",
-        amount: log.quantity, // Dùng chung trường amount để UI dễ render
+        quantity: log.quantity,
+        amount: log.quantity, // giữ tương thích với render cũ
+        lostWeightKg: log.lostWeightKg ?? null,
         unit: "con",
         user: "KTV Hệ thống",
       }));

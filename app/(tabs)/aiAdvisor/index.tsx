@@ -25,6 +25,18 @@ interface Exchange {
   error: boolean;
 }
 
+// Loại bỏ cú pháp Markdown phổ biến trong câu trả lời của AI để hiển thị
+// dạng văn bản thuần (tránh hiện thừa các ký tự **, *, #, `, ...)
+const stripMarkdown = (s: string): string => {
+  if (!s) return s;
+  return s
+    .replace(/\*\*([\s\S]+?)\*\*/g, "$1") // **bold**
+    .replace(/__([\s\S]+?)__/g, "$1") // __bold__
+    .replace(/^#{1,6}\s+/gm, "") // headers # / ##
+    .replace(/^\s*[*+\-]\s+/gm, "• ") // bullets: *, -, +
+    .replace(/`([^`]+)`/g, "$1"); // `code`
+};
+
 export default function AIAdvisorScreen() {
   const router = useRouter();
   const [message, setMessage] = useState("");
@@ -304,7 +316,7 @@ export default function AIAdvisorScreen() {
                           ex.error && { color: theme.colors.danger },
                         ]}
                       >
-                        {ex.answer}
+                        {stripMarkdown(ex.answer)}
                       </Text>
 
                       {ex.isOffTopic && !ex.error && (

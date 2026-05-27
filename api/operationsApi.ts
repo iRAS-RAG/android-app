@@ -8,23 +8,41 @@ export const operationsApi = {
     });
   },
 
-  // SỬA: Lấy nhật ký cho ăn THEO LÔ NUÔI
   getFeedingLogsByBatch: (batchId: string) => {
     return axiosClient.get(`/batches/${batchId}/feeding-logs`, {
       params: { page: 1, pageSize: 100 },
     });
   },
 
-  // SỬA: Ghi nhận cho ăn THEO LÔ NUÔI
   postFeeding: (batchId: string, data: any) => {
-    // Xóa dòng cũ: return axiosClient.post("/feeding-logs", data);
     return axiosClient.post(`/batches/${batchId}/feeding`, data);
   },
 
   getAllTanks: () => axiosClient.get("/tanks"),
+
   getMortalityLogs: () =>
     axiosClient.get("/mortality-logs", { params: { page: 1, pageSize: 100 } }),
-  postMortalityLog: (data: any) => axiosClient.post("/mortality-logs", data),
+
+  /**
+   * Validate trước khi ghi nhận cá chết.
+   * Response: { isWithinRange: boolean, message: string }
+   * Backend field: lostWeightKg (không phải weight)
+   */
+  validateMortalityLog: (
+    batchId: string,
+    data: { quantity: number; lostWeightKg: number; date: string },
+  ) => axiosClient.post(`/batches/${batchId}/mortality/validate`, data),
+
+  /**
+   * Ghi nhận cá chết theo lô nuôi.
+   * Endpoint: POST /batches/{batchId}/mortality
+   * Backend field: lostWeightKg (không phải weight)
+   */
+  postMortalityLog: (
+    batchId: string,
+    data: { quantity: number; lostWeightKg: number; date: string },
+  ) => axiosClient.post(`/batches/${batchId}/mortality`, data),
+
   putMortalityLog: (id: string, data: any) =>
     axiosClient.put(`/mortality-logs/${id}`, data),
 };

@@ -266,7 +266,7 @@ export default function DashboardScreen() {
                 <Text style={styles.statValue}>{stats.totalTanks}</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Lô đang nuôi</Text>
+                <Text style={styles.statLabel}>Lô nuôi</Text>
                 <Text style={styles.statValue}>{stats.totalBatches}</Text>
               </View>
               <View style={styles.statCard}>
