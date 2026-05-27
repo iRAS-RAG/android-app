@@ -3,8 +3,18 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import React, { useRef, useEffect } from "react";
+import ToastComponent, { ToastRef } from "@/components/common/Toast";
+import { setToastRef } from "@/utils/toast";
 
 export default function RootLayout() {
+  const toastRef = useRef<ToastRef>(null);
+
+  useEffect(() => {
+    setToastRef(toastRef.current);
+    return () => setToastRef(null);
+  }, []);
+
   return (
     <SafeAreaProvider>
       {/* 1. AuthProvider nên nằm ngoài cùng để bao bọc logic toàn app */}
@@ -69,6 +79,9 @@ export default function RootLayout() {
               options={{ headerShown: false }}
             />
           </Stack>
+
+          {/* Toast toàn cục — render SAU Stack để nằm trên cùng mọi màn hình */}
+          <ToastComponent ref={toastRef} />
         </LinearGradient>
       </AuthProvider>
     </SafeAreaProvider>

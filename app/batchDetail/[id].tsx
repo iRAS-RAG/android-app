@@ -9,7 +9,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
-  Alert,
   Dimensions,
 } from "react-native";
 import {
@@ -36,6 +35,7 @@ const theme = {
 };
 
 import { batchService } from "@/services/batchService";
+import { toast } from "@/utils/toast";
 
 const { width } = Dimensions.get("window");
 
@@ -56,7 +56,7 @@ export default function BatchDetailScreen() {
       setData(detailData);
     } catch (error) {
       console.error("Lỗi tải dữ liệu lô nuôi:", error);
-      Alert.alert("Lỗi", "Không thể tải dữ liệu lô nuôi. Vui lòng thử lại.");
+      toast.error("Không thể tải dữ liệu lô nuôi. Vui lòng thử lại.");
     } finally {
       setLoading(false);
       setRefreshing(false);

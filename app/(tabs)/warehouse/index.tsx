@@ -10,7 +10,6 @@ import {
   Modal,
   TextInput,
   ScrollView,
-  Alert,
   ActivityIndicator,
   RefreshControl,
   KeyboardAvoidingView,
@@ -22,6 +21,7 @@ import { operationsService } from "@/services/operationsService";
 import { operationsApi } from "@/api/operationsApi";
 import { styles } from "@/styles/operations/operations.styles";
 import axiosClient from "@/api/axiosClient";
+import { toast } from "@/utils/toast";
 
 export default function OperationsScreen() {
   const [loading, setLoading] = useState(true);
@@ -47,7 +47,9 @@ export default function OperationsScreen() {
   const [deadWeight, setDeadWeight] = useState(""); // khối lượng cá chết (kg)
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const [mortalityLogs, setMortalityLogs] = useState<any[]>([]);
-  const [editingMortalityId, setEditingMortalityId] = useState<string | null>(null);
+  const [editingMortalityId, setEditingMortalityId] = useState<string | null>(
+    null,
+  );
 
   // Cảnh báo inline bên trong modal (giống web) — null = không có cảnh báo
   const [mortalityWarning, setMortalityWarning] = useState<string | null>(null);
@@ -95,7 +97,7 @@ export default function OperationsScreen() {
 
   const handleSaveFeeding = async () => {
     if (!selectedBatchId || !feedAmount || !selectedFeedId) {
-      Alert.alert("Thông báo", "Vui lòng nhập đủ các trường có dấu (*)");
+      toast.warning("Vui lòng nhập đầy đủ thông tin bắt buộc.");
       return;
     }
 
@@ -104,7 +106,7 @@ export default function OperationsScreen() {
       const parsedAmount = parseFloat(sanitizedAmount);
 
       if (isNaN(parsedAmount) || parsedAmount <= 0) {
-        Alert.alert("Lỗi", "Khối lượng không hợp lệ.");
+        toast.error("Khối lượng không hợp lệ.");
         return;
       }
 
@@ -118,17 +120,17 @@ export default function OperationsScreen() {
       if (editingLogId) {
         // (Ghi chú: Hiện Backend của bạn chưa có API PUT để sửa lịch sử đâu nhé)
         await axiosClient.put(`/feeding-logs/${editingLogId}`, payload);
-        Alert.alert("Thành công", "Đã cập nhật lịch sử cho ăn.");
+        toast.success("Đã cập nhật lịch sử cho ăn.");
       } else {
         // SỬA DÒNG NÀY: Truyền selectedBatchId vào hàm postFeeding
         await operationsApi.postFeeding(selectedBatchId, payload);
-        Alert.alert("Thành công", "Đã lưu vào lịch sử cho ăn.");
+        toast.success("Đã lưu vào lịch sử cho ăn.");
       }
 
       setModalFeedingVisible(false);
       loadInitialData();
     } catch (error: any) {
-      Alert.alert("Lỗi", "Không thể lưu dữ liệu.");
+      toast.error("Không thể lưu dữ liệu.");
       console.error(error);
     }
   };
@@ -154,7 +156,11 @@ export default function OperationsScreen() {
     const parsedQuantity = parseInt(deadAmount, 10);
     const parsedWeight = parseFloat(deadWeight);
     const date = new Date().toISOString();
-    const payload = { quantity: parsedQuantity, lostWeightKg: parsedWeight, date };
+    const payload = {
+      quantity: parsedQuantity,
+      lostWeightKg: parsedWeight,
+      date,
+    };
 
     setIsSavingMortality(true);
     try {
@@ -173,7 +179,7 @@ export default function OperationsScreen() {
         err?.response?.data?.title ||
         err?.message ||
         "Không thể lưu dữ liệu. Vui lòng thử lại.";
-      Alert.alert("Lỗi khi lưu", errMsg);
+      toast.error(errMsg);
     } finally {
       setIsSavingMortality(false);
     }
@@ -186,7 +192,9 @@ export default function OperationsScreen() {
    */
   const handleSaveMortality = async () => {
     if (!selectedBatchId || !deadAmount || !deadWeight) {
-      Alert.alert("Thông báo", "Vui lòng nhập đủ: lô nuôi, số lượng (con) và khối lượng (kg).");
+      toast.warning(
+        "Vui lòng nhập đủ: lô nuôi, số lượng (con) và khối lượng (kg).",
+      );
       return;
     }
 
@@ -194,11 +202,11 @@ export default function OperationsScreen() {
     const parsedWeight = parseFloat(deadWeight);
 
     if (isNaN(parsedQuantity) || parsedQuantity <= 0) {
-      Alert.alert("Lỗi", "Số lượng cá chết phải là số nguyên dương.");
+      toast.error("Số lượng cá chết phải là số nguyên dương.");
       return;
     }
     if (isNaN(parsedWeight) || parsedWeight <= 0) {
-      Alert.alert("Lỗi", "Khối lượng phải là số dương.");
+      toast.error("Khối lượng phải là số dương.");
       return;
     }
 
@@ -229,7 +237,10 @@ export default function OperationsScreen() {
 
         if (!payload?.isWithinRange) {
           // Hiển thị inline warning bên trong modal (giống web)
-          setMortalityWarning(payload?.message || "Số liệu vượt ngưỡng cho phép. Nhấn 'Xác nhận & Lưu' để tiếp tục.");
+          setMortalityWarning(
+            payload?.message ||
+              "Số liệu vượt ngưỡng cho phép. Nhấn 'Xác nhận & Lưu' để tiếp tục.",
+          );
           setIsSavingMortality(false);
           return; // Dừng lại, chờ người dùng xác nhận lần 2
         }
@@ -497,7 +508,6 @@ export default function OperationsScreen() {
                   </View>
                 )}
               </View>
-
             </View>
           </View>
         )}
@@ -584,7 +594,7 @@ export default function OperationsScreen() {
                 </View>
               ) : (
                 <>
-                  <Text style={styles.label}>Loại thức ăn</Text>
+                  <Text style={styles.label}>Loại thức ăn *</Text>
                   <Dropdown
                     style={styles.dropdown}
                     data={feedTypes}
@@ -696,7 +706,10 @@ export default function OperationsScreen() {
                     style={styles.input}
                     keyboardType="numeric"
                     value={deadAmount}
-                    onChangeText={(v) => { setDeadAmount(v); setMortalityWarning(null); }}
+                    onChangeText={(v) => {
+                      setDeadAmount(v);
+                      setMortalityWarning(null);
+                    }}
                     placeholder="Ví dụ: 3"
                     returnKeyType="next"
                   />
@@ -705,7 +718,10 @@ export default function OperationsScreen() {
                     style={styles.input}
                     keyboardType="decimal-pad"
                     value={deadWeight}
-                    onChangeText={(text) => { setDeadWeight(text.replace(",", ".")); setMortalityWarning(null); }}
+                    onChangeText={(text) => {
+                      setDeadWeight(text.replace(",", "."));
+                      setMortalityWarning(null);
+                    }}
                     placeholder="Ví dụ: 0.5"
                     returnKeyType="done"
                   />
@@ -726,14 +742,35 @@ export default function OperationsScreen() {
                     >
                       <Text style={{ fontSize: 16, marginTop: 1 }}>⚠️</Text>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontWeight: "700", color: "#B45309", fontSize: 13, marginBottom: 2 }}>
+                        <Text
+                          style={{
+                            fontWeight: "700",
+                            color: "#B45309",
+                            fontSize: 13,
+                            marginBottom: 2,
+                          }}
+                        >
                           Cảnh báo vượt ngưỡng
                         </Text>
-                        <Text style={{ color: "#92400E", fontSize: 12, lineHeight: 18 }}>
+                        <Text
+                          style={{
+                            color: "#92400E",
+                            fontSize: 12,
+                            lineHeight: 18,
+                          }}
+                        >
                           {mortalityWarning}
                         </Text>
-                        <Text style={{ color: "#92400E", fontSize: 12, marginTop: 4, fontStyle: "italic" }}>
-                          Bấm &quot;Xác nhận &amp; Lưu&quot; để tiếp tục ghi nhận.
+                        <Text
+                          style={{
+                            color: "#92400E",
+                            fontSize: 12,
+                            marginTop: 4,
+                            fontStyle: "italic",
+                          }}
+                        >
+                          Bấm &quot;Xác nhận &amp; Lưu&quot; để tiếp tục ghi
+                          nhận.
                         </Text>
                       </View>
                     </View>
@@ -749,7 +786,11 @@ export default function OperationsScreen() {
               <TouchableOpacity
                 style={[
                   styles.btnSave,
-                  { backgroundColor: isSavingMortality ? "#9CA3AF" : theme.colors.danger },
+                  {
+                    backgroundColor: isSavingMortality
+                      ? "#9CA3AF"
+                      : theme.colors.danger,
+                  },
                 ]}
                 onPress={isSavingMortality ? undefined : handleSaveMortality}
                 disabled={isSavingMortality}
@@ -768,7 +809,6 @@ export default function OperationsScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-
     </SafeAreaView>
   );
 }

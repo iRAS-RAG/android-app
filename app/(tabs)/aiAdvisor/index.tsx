@@ -1,11 +1,10 @@
 import { styles } from "@/styles/ai/aiAdvisor.styles";
 import { theme } from "@/theme";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -16,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { advisoryApi } from "@/api/advisoryApi";
+import { toast } from "@/utils/toast";
 
 interface Exchange {
   question: string;
@@ -39,6 +39,13 @@ const stripMarkdown = (s: string): string => {
 
 export default function AIAdvisorScreen() {
   const router = useRouter();
+  // Nhận params từ trang alertDetail (khi bấm "Tham vấn AI Advisor")
+  const { prefillPrompt, tankId, tankName } = useLocalSearchParams<{
+    prefillPrompt?: string;
+    tankId?: string;
+    tankName?: string;
+  }>();
+
   const [message, setMessage] = useState("");
   const [tanks, setTanks] = useState<any[]>([]);
   const [loadingTanks, setLoadingTanks] = useState(true);
@@ -46,6 +53,8 @@ export default function AIAdvisorScreen() {
   const [sending, setSending] = useState(false);
   const [exchanges, setExchanges] = useState<Exchange[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
+  // Dùng ref để chỉ apply prefill 1 lần mỗi lần navigate đến trang này
+  const prefillApplied = useRef(false);
 
   // Tải danh sách bể nuôi để người dùng chọn trước khi chat
   useEffect(() => {
@@ -61,6 +70,36 @@ export default function AIAdvisorScreen() {
     };
     loadTanks();
   }, []);
+
+  // Khi có params từ alertDetail: auto-select bể và pre-fill prompt
+  useFocusEffect(
+    useCallback(() => {
+      // Reset cờ mỗi lần focus để xử lý navigate mới
+      prefillApplied.current = false;
+    }, [tankId, prefillPrompt]),
+  );
+
+  useEffect(() => {
+    if (
+      !prefillApplied.current &&
+      !loadingTanks &&
+      tankId &&
+      prefillPrompt &&
+      tanks.length > 0
+    ) {
+      prefillApplied.current = true;
+      // Tìm bể trong danh sách đã tải
+      const matchedTank = tanks.find((t: any) => t.id === tankId);
+      if (matchedTank) {
+        setSelectedTank(matchedTank);
+      } else if (tankName) {
+        // Fallback: tạo object tạm nếu không tìm thấy trong list
+        setSelectedTank({ id: tankId, name: tankName });
+      }
+      setExchanges([]);
+      setMessage(prefillPrompt);
+    }
+  }, [loadingTanks, tanks, tankId, prefillPrompt, tankName]);
 
   const handleSelectTank = (tank: any) => {
     setSelectedTank(tank);
@@ -127,7 +166,7 @@ export default function AIAdvisorScreen() {
         reason =
           apiMsg || "Không thể kết nối tới trợ lý AI. Vui lòng thử lại.";
       }
-      Alert.alert("Không thể tư vấn", reason);
+      toast.error(reason);
       setExchanges((prev) => {
         const next = [...prev];
         const last = next.length - 1;
