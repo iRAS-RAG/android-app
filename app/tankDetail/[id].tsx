@@ -11,13 +11,13 @@ import {
   ActivityIndicator,
   Dimensions,
   RefreshControl,
-  Alert,
   Modal,
 } from "react-native";
 import { LineChart } from "react-native-chart-kit";
 import { Ionicons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { tankDetailService } from "@/services/tankDetailService";
 import { tankDetailApi } from "@/api/tankDetailApi";
+import { toast } from "@/utils/toast";
 
 const screenWidth = Dimensions.get("window").width;
 const chartConfig = {
@@ -135,10 +135,7 @@ export default function TankDetailScreen() {
       await loadFullData();
     } catch (error) {
       console.error("Lỗi chuyển trạng thái thiết bị:", error);
-      Alert.alert(
-        "Lỗi",
-        "Không thể chuyển trạng thái thiết bị. Vui lòng thử lại.",
-      );
+      toast.error("Không thể chuyển trạng thái thiết bị. Vui lòng thử lại.");
     } finally {
       setIsToggling(false);
       setDeviceToToggle(null);
@@ -312,9 +309,7 @@ export default function TankDetailScreen() {
                     name={device.status ? "engine" : "engine-off"}
                     size={24}
                     color={
-                      device.status
-                        ? theme.colors.success
-                        : theme.colors.danger
+                      device.status ? theme.colors.success : theme.colors.danger
                     }
                   />
                   <View style={{ marginLeft: 10, flex: 1 }}>
@@ -371,24 +366,6 @@ export default function TankDetailScreen() {
             </Text>
           )}
         </View>
-
-        {/* 4. AI Advisor */}
-        <TouchableOpacity
-          style={styles.aiButton}
-          onPress={() => router.push("/aiAdvisor")}
-        >
-          <MaterialCommunityIcons
-            name="robot-confused-outline"
-            size={22}
-            color="#FFF"
-          />
-          <View style={{ marginLeft: 12 }}>
-            <Text style={styles.aiButtonText}>Phân tích AI Advisor</Text>
-            <Text style={styles.aiButtonSub}>
-              Dựa trên dữ liệu thực tế iRAS-RAG
-            </Text>
-          </View>
-        </TouchableOpacity>
       </ScrollView>
 
       {/* POPUP XÁC NHẬN BẬT/TẮT THIẾT BỊ ĐIỀU KHIỂN */}

@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
@@ -16,6 +15,7 @@ import { useRouter } from "expo-router";
 import { styles } from "@/styles/settings/changePassword.styles";
 // IMPORT SERVICE GỌI API NGƯỜI DÙNG
 import { userService } from "@/services/userService";
+import { toast } from "@/utils/toast";
 export default function ChangePasswordScreen() {
   const router = useRouter();
   const [oldPassword, setOldPassword] = useState("");
@@ -36,7 +36,7 @@ export default function ChangePasswordScreen() {
   const isMatch = newPassword === confirmPassword && newPassword.length > 0;
   const handleChangePassword = async () => {
     if (!oldPassword) {
-      Alert.alert("Lỗi", "Vui lòng nhập mật khẩu hiện tại.");
+      toast.warning("Vui lòng nhập mật khẩu hiện tại.");
       return;
     }
     setIsLoading(true);
@@ -47,16 +47,15 @@ export default function ChangePasswordScreen() {
         newPassword: newPassword,
         confirmNewPassword: confirmPassword,
       });
-      Alert.alert("Thành công", "Đổi mật khẩu thành công!", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
+      toast.success("Đổi mật khẩu thành công!");
+      router.back();
     } catch (error: any) {
       // Bóc tách thông báo lỗi từ API trả về, hoặc dùng thông báo mặc định
       const errorMsg =
         error?.data?.message ||
         error?.message ||
         "Mật khẩu hiện tại không đúng hoặc có lỗi xảy ra. Vui lòng thử lại.";
-      Alert.alert("Lỗi", errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsLoading(false);
     }

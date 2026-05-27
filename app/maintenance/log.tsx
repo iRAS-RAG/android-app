@@ -20,6 +20,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { styles } from "@/styles/maintenance/maintenance.styles";
 import { maintenanceService } from "@/services/maintenanceService";
 import { alertService } from "@/services/alertService";
+import { toast } from "@/utils/toast";
 
 export default function MaintenanceLogScreen() {
   const router = useRouter();
@@ -132,18 +133,17 @@ export default function MaintenanceLogScreen() {
         await maintenanceService.updateLog(logId as string, payload);
         setHasChanges(false);
         setIsEditing(false);
-        Alert.alert("Thành công", "Đã cập nhật nhật ký bảo trì!");
+        toast.success("Đã cập nhật nhật ký bảo trì!");
       } else {
         await maintenanceService.createLog(payload);
         await alertService.updateStatus(id as string, "resolved");
         setHasChanges(false);
-        Alert.alert("Thành công", "Đã lưu nhật ký và đóng sự cố!", [
-          { text: "OK", onPress: () => router.back() },
-        ]);
+        toast.success("Đã lưu nhật ký và đóng sự cố!");
+        router.back();
       }
     } catch (error: any) {
       console.error(error);
-      Alert.alert("Lỗi", "Không thể lưu nhật ký. Vui lòng thử lại.");
+      toast.error("Không thể lưu nhật ký. Vui lòng thử lại.");
     } finally {
       setIsSubmitting(false);
     }

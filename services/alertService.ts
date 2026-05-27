@@ -28,6 +28,12 @@ export const alertService = {
 
         limit: `${item.minThreshold ?? 0} - ${item.maxThreshold ?? 0}`,
 
+        // Lưu thêm các trường gốc để dùng làm fallback cho trang detail
+        // (API detail /alerts/{id} có thể không trả về đầy đủ các trường này)
+        unit: item.unitOfMeasure || item.unit || "",
+        sensorTypeName: item.sensorTypeName || "",
+        fishTankId: item.fishTankId || "",
+
         level: mapSeverity(item.status),
         status: mapStatus(item.status),
         color: mapColor(item.status),
@@ -71,6 +77,7 @@ export const alertService = {
       // 3. Map toàn bộ dữ liệu chi tiết
       return {
         id: item.id,
+        sensorName: item.sensorTypeName || "hệ thống", // Tên cảm biến thuần (dùng cho desc box)
         title: `Cảnh báo ${item.sensorTypeName || "hệ thống"}`,
         desc:
           item.description ||
@@ -85,7 +92,7 @@ export const alertService = {
         type: "Sensor",
 
         // --- ĐỔ DỮ LIỆU ĐÃ TÍNH TOÁN RA UI (Dành cho các ô CompBox) ---
-        unit: item.unitOfMeasure || item.unit || "mg/L", // Sửa thêm unitOfMeasure cho chuẩn DTO
+        unit: item.unitOfMeasure || item.unit || "", // Để trống nếu API detail không trả về — alertDetail dùng fallbackUnit từ list
         optimalValue: `${min} - ${max}`,
         safeLimit: limitText,
         exceededPercent: overPercentage,

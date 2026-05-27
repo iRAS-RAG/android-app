@@ -4,26 +4,35 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import React, { useState, useCallback } from "react";
 import {
-  Dimensions,
   SafeAreaView,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import MetaItem from "@/components/alerts/MetaItem";
-import CompBox from "@/components/alerts/CompBox";
-import StepItem from "@/components/alerts/StepItem";
 import { alertService } from "@/services/alertService";
 import { maintenanceService } from "@/services/maintenanceService";
-
-const screenWidth = Dimensions.get("window").width;
+import { toast } from "@/utils/toast";
 
 export default function AlertDetailScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams();
+  const {
+    id,
+    fallbackLimit,
+    fallbackValue,
+    fallbackUnit,
+    fallbackSensorName,
+    fallbackTankId,
+  } = useLocalSearchParams<{
+    id: string;
+    fallbackLimit?: string;
+    fallbackValue?: string;
+    fallbackUnit?: string;
+    fallbackSensorName?: string;
+    fallbackTankId?: string;
+  }>();
 
   const [currentStatus, setCurrentStatus] = useState("Đang xảy ra");
   const [alertData, setAlertData] = useState<any>(null);
@@ -50,14 +59,16 @@ export default function AlertDetailScreen() {
 
       if (alertInfo) {
         setAlertData(alertInfo);
+        // Dùng status thực từ API làm nguồn sự thật duy nhất
         setCurrentStatus(
           alertInfo.status === "Mới" ? "Đang xảy ra" : alertInfo.status,
         );
       }
 
+      // logInfo chỉ dùng để xác định có nhật ký hay chưa (hiển thị nút xem log)
+      // KHÔNG ghi đè currentStatus — tránh hiển thị sai "Đã giải quyết" khi alert vẫn đang xử lý
       if (logInfo) {
         setExistingLogId(logInfo.id);
-        setCurrentStatus("Đã giải quyết");
       } else {
         setExistingLogId(null);
       }
@@ -105,15 +116,51 @@ export default function AlertDetailScreen() {
 
   const displayTitle = alertData?.title || "Cảnh báo hệ thống";
   const displayLevel = alertData?.level || "Nguy hiểm";
-  const displayDesc =
-    alertData?.desc || "Phát hiện chỉ số bất thường cần kiểm tra.";
   const displayTank = alertData?.tank || "Bể chưa xác định";
   const displayTime = alertData?.time || "Vừa xong";
-  const displayValue = alertData?.value || "0";
+
+  // Dùng data từ detail API, fallback về data từ list nếu API detail thiếu trường
+  const rawLimit = alertData?.limit || "";
+  const isLimitEmpty = !rawLimit || rawLimit === "0 - 0" || rawLimit === "0-0";
+  const displayLimit = isLimitEmpty ? (fallbackLimit || "") : rawLimit;
+
+  const rawValue = alertData?.value || "";
+  const displayValue = rawValue || fallbackValue || "0";
+
+  const rawUnit = alertData?.unit || "";
+  const displayUnit = rawUnit || fallbackUnit || "";
+
+  const rawSensorName = alertData?.sensorName || alertData?.title?.replace("Cảnh báo ", "") || "";
+  const displaySensorName = rawSensorName || fallbackSensorName || "hệ thống";
+
+  // fishTankId: ưu tiên từ alertData (detail API), fallback từ list
+  const displayFishTankId = alertData?.fishTankId || fallbackTankId || "";
   const displayColor =
     currentStatus === "Đã giải quyết"
       ? theme.colors.success
       : alertData?.color || theme.colors.danger;
+
+  // Câu mô tả cảnh báo (giống web)
+  const displayWarningDesc =
+    `Giá trị ${displaySensorName} đang ở mức ${displayValue}${displayUnit ? " " + displayUnit : ""}, ` +
+    `vượt ngưỡng an toàn (${displayLimit}${displayUnit ? " " + displayUnit : ""}). Cần kiểm tra và xử lý ngay.`;
+
+  // Prompt điền sẵn cho AI Advisor (giống web)
+  const aiPrefillPrompt =
+    `${displayTank} đang có chỉ số ${displaySensorName} là ${displayValue}${displayUnit ? " " + displayUnit : ""} ` +
+    `(vượt ngưỡng an toàn ${displayLimit}${displayUnit ? " " + displayUnit : ""}). ` +
+    `Hãy hướng dẫn tôi quy trình xử lý SOP khẩn cấp cho tình huống này`;
+
+  const handleConsultAI = () => {
+    router.push({
+      pathname: "/(tabs)/aiAdvisor",
+      params: {
+        prefillPrompt: aiPrefillPrompt,
+        tankId: displayFishTankId,
+        tankName: displayTank,
+      },
+    });
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
@@ -159,7 +206,6 @@ export default function AlertDetailScreen() {
               </View>
             </View>
           </View>
-          <Text style={styles.alertDesc}>{displayDesc}</Text>
           <View style={styles.metaRow}>
             <MetaItem icon="business-outline" label={displayTank} />
             <MetaItem icon="time-outline" label={displayTime} />
@@ -167,75 +213,135 @@ export default function AlertDetailScreen() {
           </View>
         </View>
 
-        {/* GIÁ TRỊ HIỆN TẠI */}
-        <View style={styles.currentValueCard}>
-          <Text style={styles.sectionLabel}>Giá trị hiện tại</Text>
-          <View style={styles.mainValueContainer}>
-            <Text style={[styles.currentValueText, { color: displayColor }]}>
-              {displayValue}{" "}
-              <Text style={{ fontSize: 18 }}>{alertData?.unit || "mg/L"}</Text>
+        {/* MÔ TẢ CẢNH BÁO (giống web) */}
+        <View
+          style={{
+            marginHorizontal: 20,
+            marginBottom: 16,
+            padding: 14,
+            backgroundColor: "#FEF2F2",
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: "#FECACA",
+          }}
+        >
+          <Text style={{ fontSize: 13, color: theme.colors.danger, lineHeight: 20 }}>
+            Giá trị{" "}
+            <Text style={{ fontWeight: "700" }}>{displaySensorName}</Text>
+            {" "}đang ở mức {displayValue}{displayUnit ? " " + displayUnit : ""}, vượt ngưỡng an toàn ({displayLimit}
+            {displayUnit ? " " + displayUnit : ""}). Cần kiểm tra và xử lý ngay.
+          </Text>
+        </View>
+
+        {/* GIÁ TRỊ HIỆN TẠI & NGƯỠNG AN TOÀN (2 cột, giống web) */}
+        <View
+          style={{
+            flexDirection: "row",
+            marginHorizontal: 20,
+            marginBottom: 16,
+            gap: 12,
+          }}
+        >
+          {/* Giá trị hiện tại */}
+          <View
+            style={{
+              flex: 1,
+              padding: 16,
+              backgroundColor: "#FFF",
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: "#FECACA",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 10,
+                fontWeight: "700",
+                color: theme.colors.textSecondary,
+                textTransform: "uppercase",
+                marginBottom: 6,
+              }}
+            >
+              Giá trị hiện tại
+            </Text>
+            <Text
+              style={{
+                fontSize: 28,
+                fontWeight: "800",
+                color: displayColor,
+                lineHeight: 34,
+              }}
+            >
+              {displayValue}
+              {displayUnit ? (
+                <Text style={{ fontSize: 16, fontWeight: "600" }}> {displayUnit}</Text>
+              ) : null}
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
+              <MaterialCommunityIcons
+                name="trending-down"
+                size={14}
+                color={displayColor}
+              />
+              <Text style={{ fontSize: 11, fontWeight: "700", color: displayColor, marginLeft: 4 }}>
+                Bất thường
+              </Text>
+            </View>
+          </View>
+
+          {/* Ngưỡng an toàn */}
+          <View
+            style={{
+              flex: 1,
+              padding: 16,
+              backgroundColor: "#FFF",
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: "#BBF7D0",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 10,
+                fontWeight: "700",
+                color: theme.colors.textSecondary,
+                textTransform: "uppercase",
+                marginBottom: 6,
+              }}
+            >
+              Ngưỡng an toàn
+            </Text>
+            <Text
+              style={{
+                fontSize: 22,
+                fontWeight: "800",
+                color: theme.colors.success,
+                lineHeight: 30,
+              }}
+            >
+              {displayLimit}
+              {displayUnit ? (
+                <Text style={{ fontSize: 14, fontWeight: "600" }}> {displayUnit}</Text>
+              ) : null}
+            </Text>
+            <Text style={{ fontSize: 11, fontWeight: "600", color: theme.colors.success, marginTop: 4 }}>
+              Mức tối ưu
             </Text>
           </View>
-          <View style={styles.comparisonGrid}>
-            <CompBox
-              label="Tối ưu"
-              value={alertData?.optimalValue || "0-0.1"}
-              color={theme.colors.success}
-            />
-            <CompBox
-              label="Ngưỡng an toàn"
-              value={alertData?.safeLimit || "< 0.3"}
-              color={theme.colors.warning}
-            />
-            <CompBox
-              label="Vượt ngưỡng"
-              value={alertData?.exceededPercent || "+0%"}
-              color={theme.colors.danger}
-            />
-          </View>
         </View>
 
-        {/* HƯỚNG DẪN XỬ LÝ */}
-        <View style={styles.aiSection}>
-          <View style={styles.aiHeader}>
-            <MaterialCommunityIcons
-              name="auto-fix"
-              size={20}
-              color={theme.colors.primary}
-            />
-            <Text style={styles.aiTitle}>Hướng dẫn xử lý từ AI</Text>
-          </View>
-          <StepItem
-            num="1"
-            title="Kiểm tra hệ thống vật lý"
-            desc={`Cử nhân sự kiểm tra trực tiếp tại ${displayTank}`}
-            priority="Ưu tiên cao"
-          />
-          <StepItem
-            num="2"
-            title="Ghi chép nhật ký bảo trì"
-            desc="Sau khi xử lý, hãy ghi log lại sự cố này"
-            priority="Ưu tiên cao"
-          />
-        </View>
-
-        {/* NÚT ACTION */}
         {/* NÚT ACTION */}
         <View style={styles.logSection}>
           <TouchableOpacity
             style={styles.btnSecondary}
             onPress={() => {
-              // SỬA LỖI Ở ĐÂY: Dùng fishTankId thay vì displayTank
-              if (alertData?.fishTankId) {
+              if (displayFishTankId) {
                 router.push({
                   pathname: "/tankDetail/[id]",
-                  params: { id: alertData.fishTankId },
+                  params: { id: displayFishTankId },
                 });
               } else {
-                Alert.alert(
-                  "Thông báo",
-                  "Không tìm thấy dữ liệu định danh của bể này.",
-                );
+                toast.warning("Không tìm thấy dữ liệu định danh của bể này.");
               }
             }}
           >
@@ -246,6 +352,28 @@ export default function AlertDetailScreen() {
             />
             <Text style={styles.btnSecondaryText}>
               Xem chi tiết {displayTank}
+            </Text>
+          </TouchableOpacity>
+
+          {/* NÚT THAM VẤN AI ADVISOR — luôn hiển thị */}
+          <TouchableOpacity
+            style={[
+              styles.btnSecondary,
+              {
+                borderWidth: 1.5,
+                borderColor: theme.colors.primary,
+                backgroundColor: "#EFF6FF",
+              },
+            ]}
+            onPress={handleConsultAI}
+          >
+            <MaterialCommunityIcons
+              name="robot-outline"
+              size={20}
+              color={theme.colors.primary}
+            />
+            <Text style={[styles.btnSecondaryText, { marginLeft: 8 }]}>
+              Tham vấn AI Advisor
             </Text>
           </TouchableOpacity>
 

@@ -6,8 +6,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import authService from "../../services/authService";
+import { toast } from "@/utils/toast";
 import {
-  Alert,
   ActivityIndicator,
   Image,
   KeyboardAvoidingView,
@@ -57,14 +57,10 @@ export default function ResetPassword() {
         confirmNewPassword: confirmPassword, // Xác nhận mật khẩu mới
       });
 
-      Alert.alert("Thành công", "Mật khẩu của bạn đã được cập nhật.", [
-        { text: "Đăng nhập", onPress: () => router.replace("/(auth)/login") },
-      ]);
+      toast.success("Mật khẩu đã được cập nhật thành công!");
+      router.replace("/(auth)/login");
     } catch (err: any) {
-      Alert.alert(
-        "Lỗi",
-        typeof err === "string" ? err : "Mã xác thực hoặc mật khẩu không đúng.",
-      );
+      toast.error(typeof err === "string" ? err : "Mã xác thực hoặc mật khẩu không đúng.");
     } finally {
       setIsLoading(false);
     }

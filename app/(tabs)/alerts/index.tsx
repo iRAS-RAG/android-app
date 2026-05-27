@@ -10,13 +10,13 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Alert,
   Modal,
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
 // Đảm bảo bạn đã tạo file alertService để xử lý dữ liệu
 import { alertService } from "@/services/alertService";
+import { toast } from "@/utils/toast";
 
 export default function AlertsScreen() {
   const router = useRouter();
@@ -40,7 +40,7 @@ export default function AlertsScreen() {
       setAlerts(data);
     } catch (error) {
       console.error("Fetch error:", error);
-      Alert.alert("Lỗi", "Không thể tải dữ liệu cảnh báo.");
+      toast.error("Không thể tải dữ liệu cảnh báo.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -87,10 +87,7 @@ export default function AlertsScreen() {
     try {
       // Gọi API cập nhật trạng thái thực tế
       await alertService.updateStatus(id, "processing");
-      Alert.alert(
-        "Thông báo",
-        "Đã xác nhận sự cố, hệ thống đang chuyển sang trạng thái theo dõi.",
-      );
+      toast.info("Đã xác nhận sự cố. Đang chuyển sang trạng thái theo dõi.");
     } catch (error) {
       console.error("Update error:", error);
       // Nếu lỗi API, có thể gọi fetchAlerts() để đồng bộ lại dữ liệu đúng từ server
@@ -103,7 +100,7 @@ export default function AlertsScreen() {
       prev.map((a) => (a.id === id ? { ...a, status: "Đã giải quyết" } : a)),
     );
     await alertService.updateStatus(id, "resolved");
-    Alert.alert("Thành công", "Đã đóng sự cố.");
+    toast.success("Đã đóng sự cố.");
   };
 
   return (
@@ -489,7 +486,16 @@ const AlertCard = ({ item, router, onConfirm, onResolve }: any) => {
             onPress={() =>
               router.push({
                 pathname: "/alertDetail/[id]",
-                params: { id: item.id },
+                params: {
+                  id: item.id,
+                  // Truyền kèm data từ list để dùng làm fallback trong detail
+                  // (API detail /alerts/{id} có thể không trả về minThreshold/maxThreshold/unit)
+                  fallbackLimit: item.limit || "",
+                  fallbackValue: item.value || "",
+                  fallbackUnit: item.unit || "",
+                  fallbackSensorName: item.sensorTypeName || item.title?.replace?.("Cảnh báo ", "") || "",
+                  fallbackTankId: item.fishTankId || "",
+                },
               })
             }
           >
