@@ -331,4 +331,25 @@ export const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 8,
   },
+
+  // Nút đánh giá feedback (Hữu ích / Không hữu ích)
+  feedbackRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 6,
+    marginTop: 8,
+  },
+  feedbackBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  feedbackBtnText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#64748B",
+  },
 });

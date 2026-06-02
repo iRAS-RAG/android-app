@@ -23,6 +23,9 @@ interface Exchange {
   isOffTopic: boolean;
   citations: string[];
   error: boolean;
+  intent: string | null;
+  feedbackSubmitted: boolean;
+  isHelpful: boolean | null;
 }
 
 // Loại bỏ cú pháp Markdown phổ biến trong câu trả lời của AI để hiển thị
@@ -113,10 +116,48 @@ export default function AIAdvisorScreen() {
     setMessage("");
   };
 
+  // Gửi đánh giá hữu ích / không hữu ích cho một exchange theo index
+  const handleFeedback = async (index: number, helpful: boolean) => {
+    const ex = exchanges[index];
+    if (!ex || ex.feedbackSubmitted || !selectedTank || !ex.answer) return;
+
+    // Cập nhật UI ngay lập tức (optimistic update)
+    setExchanges((prev) => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        feedbackSubmitted: true,
+        isHelpful: helpful,
+      };
+      return updated;
+    });
+
+    try {
+      await advisoryApi.submitFeedback({
+        tankId: selectedTank.id,
+        response: ex.answer,
+        helpful,
+        intent: ex.intent,
+        question: ex.question,
+      });
+    } catch (err) {
+      console.error("Lỗi gửi feedback:", err);
+    }
+  };
+
   // Gửi câu hỏi tới AdvisoryController: POST /api/advisory/chat
   const handleSend = async () => {
     const question = message.trim();
     if (!selectedTank || !question || sending) return;
+
+    // Đánh giá ngầm: nếu câu trả lời cuối chưa được đánh giá thì tự gửi helpful=true
+    const lastIndex = exchanges.length - 1;
+    if (lastIndex >= 0) {
+      const lastEx = exchanges[lastIndex];
+      if (lastEx && !lastEx.error && !lastEx.feedbackSubmitted && lastEx.answer) {
+        handleFeedback(lastIndex, true);
+      }
+    }
 
     setMessage("");
     setSending(true);
@@ -130,6 +171,9 @@ export default function AIAdvisorScreen() {
         isOffTopic: false,
         citations: [],
         error: false,
+        intent: null,
+        feedbackSubmitted: false,
+        isHelpful: null,
       },
     ]);
 
@@ -148,6 +192,7 @@ export default function AIAdvisorScreen() {
           isOffTopic: !!data.isOffTopic,
           citations: Array.isArray(data.citations) ? data.citations : [],
           error: false,
+          intent: data.intent ?? null,
         };
         return next;
       });
@@ -399,6 +444,67 @@ export default function AIAdvisorScreen() {
                     </>
                   )}
                 </View>
+
+                {/* NÚT ĐÁNH GIÁ FEEDBACK */}
+                {!isWaiting && !ex.error && (
+                  <View style={styles.feedbackRow}>
+                    <TouchableOpacity
+                      style={styles.feedbackBtn}
+                      onPress={() => handleFeedback(index, true)}
+                      disabled={ex.feedbackSubmitted}
+                      activeOpacity={0.7}
+                    >
+                      <MaterialCommunityIcons
+                        name="thumb-up-outline"
+                        size={14}
+                        color={
+                          ex.feedbackSubmitted && ex.isHelpful === true
+                            ? theme.colors.success
+                            : "#64748B"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.feedbackBtnText,
+                          ex.feedbackSubmitted &&
+                            ex.isHelpful === true && {
+                              color: theme.colors.success,
+                            },
+                        ]}
+                      >
+                        Hữu ích
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.feedbackBtn}
+                      onPress={() => handleFeedback(index, false)}
+                      disabled={ex.feedbackSubmitted}
+                      activeOpacity={0.7}
+                    >
+                      <MaterialCommunityIcons
+                        name="thumb-down-outline"
+                        size={14}
+                        color={
+                          ex.feedbackSubmitted && ex.isHelpful === false
+                            ? theme.colors.danger
+                            : "#64748B"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.feedbackBtnText,
+                          ex.feedbackSubmitted &&
+                            ex.isHelpful === false && {
+                              color: theme.colors.danger,
+                            },
+                        ]}
+                      >
+                        Không hữu ích
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             </React.Fragment>
           );
