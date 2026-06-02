@@ -13,7 +13,7 @@ export const dashboardApi = {
 
   // Giữ nguyên hoặc kiểm tra lại CorrectiveActionController có Route là "api/corrective-actions" không
   getAlerts: (page = 1, pageSize = 10) => {
-    return axiosClient.get(`/alerts?page=${page}&pageSize=${pageSize}`);
+    return axiosClient.get(`/alerts?page=${page}&pageSize=${pageSize}&statuses=OPEN`);
   },
   // API lấy lô nuôi để lấy loại cá và số lượng
   // getBatches: (tankId: string) => {

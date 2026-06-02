@@ -22,7 +22,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Dashboard",
+          title: "Trang chủ",
           tabBarIcon: ({ color }) => (
             <Ionicons name="grid" size={22} color={color} />
           ),
