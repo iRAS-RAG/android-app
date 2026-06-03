@@ -10,15 +10,22 @@ export const tankDetailApi = {
   getLatestData: (id: string) => {
     return axiosClient.get(`/fish-tanks/${id}/latest-data`);
   },
-  // Lấy lịch sử cảm biến cho biểu đồ [Route: api/sensors/{id}/logs]
-  // getSensorLogs: (sensorId: string, page = 1, pageSize = 20) => {
-  //   return axiosClient.get(`/sensors/${sensorId}/logs`, {
-  //     params: { Page: page, PageSize: pageSize },
-  //   });
-  // },
   getSensorLogs: (sensorId: string, page = 1, pageSize = 20) => {
     return axiosClient.get(`/hardwares/sensors/${sensorId}/logs`, {
       params: { Page: page, PageSize: pageSize },
+    });
+  },
+
+  // Lịch sử sensor theo khoảng thời gian + interval (dùng cho filter chart)
+  // from, to: ISO string; interval: phút
+  getSensorHistory: (
+    sensorId: string,
+    from: string,
+    to: string,
+    interval: number,
+  ) => {
+    return axiosClient.get(`/hardwares/sensors/${sensorId}/history`, {
+      params: { from, to, interval },
     });
   },
 

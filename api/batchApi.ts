@@ -26,4 +26,9 @@ export const batchApi = {
   getMortalityLogs: (params?: any) => {
     return axiosClient.get("/mortality-logs", { params });
   },
+
+  // Lấy danh sách giai đoạn của vụ nuôi (dùng để hiển thị giai đoạn hiện tại khi cho ăn)
+  getBatchStages: (id: string) => {
+    return axiosClient.get(`/batches/${id}/stages`);
+  },
 };

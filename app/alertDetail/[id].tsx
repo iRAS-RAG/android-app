@@ -60,9 +60,7 @@ export default function AlertDetailScreen() {
       if (alertInfo) {
         setAlertData(alertInfo);
         // Dùng status thực từ API làm nguồn sự thật duy nhất
-        setCurrentStatus(
-          alertInfo.status === "Mới" ? "Đang xảy ra" : alertInfo.status,
-        );
+        setCurrentStatus(alertInfo.status ?? "Mới");
       }
 
       // logInfo chỉ dùng để xác định có nhật ký hay chưa (hiển thị nút xem log)
@@ -78,24 +76,50 @@ export default function AlertDetailScreen() {
     setLoading(false);
   };
 
-  const handleProcessAlert = async () => {
+  // OPEN → ACKNOWLEDGED (Tiếp nhận)
+  const handleAcknowledge = async () => {
+    try {
+      await alertService.acknowledge(id as string);
+      setCurrentStatus("Đang xử lý");
+      toast.info("Đã tiếp nhận cảnh báo. Đang chuyển sang xử lý.");
+    } catch {
+      toast.error("Không thể tiếp nhận cảnh báo.");
+    }
+  };
+
+  // → DISMISSED (Bỏ qua)
+  const handleDismiss = async () => {
+    try {
+      await alertService.dismiss(id as string);
+      setCurrentStatus("Đã bỏ qua");
+      toast.info("Đã bỏ qua cảnh báo.");
+    } catch {
+      toast.error("Không thể bỏ qua cảnh báo.");
+    }
+  };
+
+  // ACKNOWLEDGED → tạo nhật ký bảo trì (backend tự set RESOLVED)
+  const handleGoToMaintenance = () => {
+    const title = alertData?.title || "Cảnh báo hệ thống";
     if (existingLogId) {
-      // ĐÃ CÓ LOG -> Chuyển sang chế độ XEM (truyền mode="view")
       router.push({
         pathname: "/maintenance/log",
-        params: { id: id, logId: existingLogId, mode: "view" },
+        params: { id: id, logId: existingLogId, mode: "view", alertTitle: title },
       });
-      return;
+    } else {
+      router.push({
+        pathname: "/maintenance/log",
+        params: { id: id, type: alertData?.type || "System", alertTitle: title },
+      });
     }
+  };
 
-    // CHƯA CÓ LOG -> Chuyển sang chế độ TẠO MỚI
-    if (currentStatus === "Đang xảy ra") {
-      setCurrentStatus("Đang xử lý");
-      await alertService.updateStatus(id as string, "processing");
-    }
+  const handleViewLog = () => {
+    if (!existingLogId) return;
+    const title = alertData?.title || "Cảnh báo hệ thống";
     router.push({
       pathname: "/maintenance/log",
-      params: { id: id, type: alertData?.type || "System" },
+      params: { id: id, logId: existingLogId, mode: "view", alertTitle: title },
     });
   };
 
@@ -197,12 +221,17 @@ export default function AlertDetailScreen() {
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.alertTitle}>{displayTitle}</Text>
-              <View
-                style={[styles.dangerTag, { backgroundColor: displayColor }]}
-              >
-                <Text style={styles.dangerTagText}>
-                  {currentStatus === "Đã giải quyết" ? "An toàn" : displayLevel}
-                </Text>
+              <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
+                <View style={[styles.dangerTag, { backgroundColor: displayColor }]}>
+                  <Text style={styles.dangerTagText}>
+                    {currentStatus === "Đã giải quyết" ? "An toàn" : displayLevel}
+                  </Text>
+                </View>
+                {currentStatus === "Đã giải quyết" && (
+                  <View style={[styles.dangerTag, { backgroundColor: "#64748B" }]}>
+                    <Text style={styles.dangerTagText}>Đã giải quyết</Text>
+                  </View>
+                )}
               </View>
             </View>
           </View>
@@ -332,79 +361,69 @@ export default function AlertDetailScreen() {
 
         {/* NÚT ACTION */}
         <View style={styles.logSection}>
-          <TouchableOpacity
-            style={styles.btnSecondary}
-            onPress={() => {
-              if (displayFishTankId) {
-                router.push({
-                  pathname: "/tankDetail/[id]",
-                  params: { id: displayFishTankId },
-                });
-              } else {
-                toast.warning("Không tìm thấy dữ liệu định danh của bể này.");
-              }
-            }}
-          >
-            <Ionicons
-              name="eye-outline"
-              size={20}
-              color={theme.colors.primary}
-            />
-            <Text style={styles.btnSecondaryText}>
-              Xem chi tiết {displayTank}
-            </Text>
-          </TouchableOpacity>
-
-          {/* NÚT THAM VẤN AI ADVISOR — luôn hiển thị */}
-          <TouchableOpacity
-            style={[
-              styles.btnSecondary,
-              {
-                borderWidth: 1.5,
-                borderColor: theme.colors.primary,
-                backgroundColor: "#EFF6FF",
-              },
-            ]}
-            onPress={handleConsultAI}
-          >
-            <MaterialCommunityIcons
-              name="robot-outline"
-              size={20}
-              color={theme.colors.primary}
-            />
-            <Text style={[styles.btnSecondaryText, { marginLeft: 8 }]}>
-              Tham vấn AI Advisor
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.btnSuccess,
-              currentStatus === "Đang xử lý" && {
-                backgroundColor: theme.colors.warning,
-              },
-              existingLogId && { backgroundColor: "#10B981" },
-            ]}
-            onPress={handleProcessAlert}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              {existingLogId && (
-                <Ionicons
-                  name="document-text-outline"
-                  size={18}
-                  color="#FFF"
-                  style={{ marginRight: 8 }}
-                />
-              )}
-              <Text style={styles.btnWhiteText}>
-                {existingLogId
-                  ? "Đã lưu nhật ký thành công"
-                  : currentStatus === "Đang xử lý"
-                    ? "Tiếp tục cập nhật nhật ký"
-                    : "Bắt đầu xử lý & Đóng sự cố"}
-              </Text>
+          {/* ── OPEN (Mới / Chờ xử lý): Tiếp nhận + Bỏ qua ── */}
+          {(currentStatus === "Mới" || currentStatus === "Đang xảy ra") && (
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <TouchableOpacity
+                style={[styles.btnSuccess, { flex: 1 }]}
+                onPress={handleAcknowledge}
+              >
+                <Ionicons name="checkmark-circle-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                <Text style={styles.btnWhiteText}>Tiếp nhận</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btnSuccess, { flex: 1, backgroundColor: "#EF4444" }]}
+                onPress={handleDismiss}
+              >
+                <Ionicons name="close-circle-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                <Text style={styles.btnWhiteText}>Bỏ qua</Text>
+              </TouchableOpacity>
             </View>
-          </TouchableOpacity>
+          )}
+
+          {/* ── ACKNOWLEDGED (Đang xử lý): Ghi nhật ký + Tham vấn AI ── */}
+          {currentStatus === "Đang xử lý" && (
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <TouchableOpacity
+                style={[styles.btnSuccess, { flex: 1, backgroundColor: theme.colors.warning }]}
+                onPress={handleGoToMaintenance}
+              >
+                <Ionicons name="document-text-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                <Text style={styles.btnWhiteText}>Ghi nhật ký</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btnSuccess, { flex: 1, backgroundColor: theme.colors.primary }]}
+                onPress={handleConsultAI}
+              >
+                <MaterialCommunityIcons name="robot-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                <Text style={styles.btnWhiteText}>Tham vấn AI</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* ── RESOLVED: chỉ hiển thị nút Xem nhật ký bảo trì ── */}
+          {currentStatus === "Đã giải quyết" && existingLogId && (
+            <TouchableOpacity
+              style={[styles.btnSuccess, { backgroundColor: theme.colors.primary, flexDirection: "row", justifyContent: "center" }]}
+              onPress={handleViewLog}
+            >
+              <Ionicons name="book-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
+              <Text style={styles.btnWhiteText}>Xem nhật ký bảo trì</Text>
+            </TouchableOpacity>
+          )}
+          {currentStatus === "Đã giải quyết" && !existingLogId && (
+            <View style={{ padding: 14, backgroundColor: "#F8FAFC", borderRadius: 12, alignItems: "center" }}>
+              <Text style={{ fontSize: 13, color: "#64748B" }}>Chưa có nhật ký bảo trì cho sự cố này</Text>
+            </View>
+          )}
+
+          {/* ── DISMISSED (Đã bỏ qua) ── */}
+          {currentStatus === "Đã bỏ qua" && (
+            <View style={[styles.btnSuccess, { backgroundColor: "#94A3B8", flexDirection: "row", justifyContent: "center" }]}>
+              <Ionicons name="remove-circle-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
+              <Text style={styles.btnWhiteText}>Đã bỏ qua</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

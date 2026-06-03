@@ -1,82 +1,114 @@
 import { batchApi } from "../api/batchApi";
-import { tankDetailApi } from "../api/tankDetailApi"; // Chỉnh lại đường dẫn nếu cần
+
+// Không cần tankDetailApi nữa — tankVolume đã có trong FarmingBatchDto
 
 export const batchService = {
   getBatchDetailOverview: async (batchId: string) => {
     try {
-      // 1. Lấy thông tin chi tiết Lô nuôi
       const batchResponse = await batchApi.getBatchById(batchId);
-      const batchData = batchResponse.data.data;
+      const d = batchResponse.data?.data;
+      if (!d) throw new Error("Không tìm thấy thông tin lô nuôi");
 
-      if (!batchData) {
-        throw new Error("Không tìm thấy thông tin lô nuôi");
-      }
-
-      // 2. Fetch các dữ liệu liên quan song song
-      // QUAN TRỌNG: Backend giới hạn PageSize tối đa là 100.
-      const [tankRes, feedingRes, mortalityRes] = await Promise.all([
-        tankDetailApi.getTankInfo(batchData.fishTankId).catch(() => null),
-        batchApi
-          .getFeedingLogs(batchId, { Page: 1, PageSize: 100 })
-          .catch((e) => {
-            console.warn("Lỗi tải lịch sử cám:", e);
-            return null;
-          }),
-        batchApi
-          .getMortalityLogs({ BatchId: batchId, Page: 1, PageSize: 100 })
-          .catch((e) => {
-            console.warn("Lỗi tải lịch sử cá chết:", e);
-            return null;
-          }),
+      // Tải feeding, mortality và stages song song
+      const [feedingRes, mortalityRes, stagesRes] = await Promise.all([
+        batchApi.getFeedingLogs(batchId, { Page: 1, PageSize: 100 }).catch(() => null),
+        batchApi.getMortalityLogs({ BatchId: batchId, Page: 1, PageSize: 100 }).catch(() => null),
+        batchApi.getBatchStages(batchId).catch(() => null),
       ]);
 
-      // Tính dung tích bể
-      const tankVolume = tankRes?.data?.data?.volume || 0;
+      // Tổng cám
+      const rawFeeding = feedingRes?.data?.data;
+      const feedingLogs = Array.isArray(rawFeeding) ? rawFeeding : rawFeeding?.items || [];
+      const totalFeedKg = feedingLogs.reduce((sum: number, l: any) => sum + (l.amount || 0), 0);
 
-      // Tính tổng cám tiêu thụ (Xử lý an toàn cấu trúc phân trang)
-      const rawFeedingData = feedingRes?.data?.data;
-      // Đề phòng trường hợp API trả về { items: [...] } thay vì mảng trực tiếp
-      const feedingLogs = Array.isArray(rawFeedingData)
-        ? rawFeedingData
-        : rawFeedingData?.items || [];
-      const totalFeed = feedingLogs.reduce(
-        (sum: number, log: any) => sum + (log.amount || 0),
-        0,
-      );
+      // Tổng cá chết
+      const rawMortality = mortalityRes?.data?.data;
+      const mortalityLogs = Array.isArray(rawMortality) ? rawMortality : rawMortality?.items || [];
+      const totalDead = mortalityLogs.reduce((sum: number, l: any) => sum + (l.quantity || 0), 0);
 
-      // Tính tổng số cá chết (Xử lý an toàn cấu trúc phân trang)
-      const rawMortalityData = mortalityRes?.data?.data;
-      const mortalityLogs = Array.isArray(rawMortalityData)
-        ? rawMortalityData
-        : rawMortalityData?.items || [];
-      const totalDead = mortalityLogs.reduce(
-        (sum: number, log: any) => sum + (log.quantity || 0),
-        0,
-      );
+      // Xác định ngày kết thúc thực tế / dự kiến
+      // Backend trả về: ActualHarvestDate và EstimatedHarvestDate (không có EndDate)
+      const endDateIso: string | null =
+        d.actualHarvestDate || d.estimatedHarvestDate || null;
 
-      // Tính toán ngày tuổi (DOC)
-      const startDate = new Date(batchData.startDate);
-      const currentDate = new Date();
-      const diffTime = Math.abs(currentDate.getTime() - startDate.getTime());
-      const daysOfCulture = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      // Ngày tuổi:
+      //  - Vụ thu hoạch/hủy → tính từ startDate đến actualHarvestDate
+      //  - Vụ đang nuôi     → tính từ startDate đến hôm nay
+      const startDate = d.startDate ? new Date(d.startDate) : null;
+      const isFinished =
+        d.status === 2 ||
+        String(d.status ?? "").toUpperCase() === "HARVESTED" ||
+        String(d.status ?? "").toUpperCase() === "THU HOẠCH" ||
+        String(d.status ?? "").toUpperCase() === "TERMINATED";
 
-      // 3. Trả về format chuẩn cho UI
+      let daysOfCulture = 0;
+      if (startDate) {
+        const endRef = isFinished && endDateIso ? new Date(endDateIso) : new Date();
+        daysOfCulture = Math.max(
+          0,
+          Math.ceil((endRef.getTime() - startDate.getTime()) / 86400000),
+        );
+      }
+
+      const initial = d.initialQuantity ?? 0;
+      const current = d.currentQuantity ?? 0;
+
+      // Tỷ lệ sống:
+      //  - Đang nuôi  → currentQuantity / initialQuantity
+      //  - Thu hoạch  → actualHarvestCount / initialQuantity (nếu có), fallback về current
+      const survivalNumerator =
+        isFinished && d.actualHarvestCount != null
+          ? d.actualHarvestCount
+          : current;
+      const survivalRate =
+        initial > 0 ? Math.round((survivalNumerator / initial) * 100) : 0;
+
+      const netChange = current - initial;
+
+      // Dung tích bể: lấy trực tiếp từ FarmingBatchDto (không cần gọi thêm API)
+      const tankVolumeM3 = d.tankVolume ?? 0;
+
+      // FCR từ API
+      const fcr = d.fcr != null ? Number(d.fcr).toFixed(2) : null;
+
+      // Dự kiến / thực tế thu hoạch
+      const estimatedHarvestCount = d.estimatedHarvestCount ?? null;
+      const actualHarvestCount = d.actualHarvestCount ?? null;
+
+      // Giai đoạn
+      const rawStages = stagesRes?.data?.data || stagesRes?.data || [];
+      const stages: any[] = Array.isArray(rawStages) ? rawStages : [];
+
       return {
         batchInfo: {
-          id: batchData.id,
-          name: batchData.name,
-          speciesName: batchData.speciesName,
-          stageName: batchData.stageName,
-          tankId: batchData.fishTankId,
-          tankName: batchData.fishTankName,
-          daysOfCulture: daysOfCulture,
-          tankVolume: tankVolume > 0 ? `${tankVolume} m³` : "Chưa cập nhật",
-          initialQuantity: batchData.initialQuantity,
-          currentQuantity: batchData.currentQuantity,
-          totalDead: totalDead,
-          totalFeed: totalFeed > 0 ? `${totalFeed.toFixed(1)} kg` : "0 kg",
-          status: batchData.status,
+          id: d.id,
+          name: d.name,
+          speciesName: d.speciesName,
+          stageName: d.stageName,
+          tankId: d.fishTankId,
+          tankName: d.fishTankName,
+          status: d.status,
+          startDate: d.startDate || null,
+          endDate: endDateIso,
+          isFinished,
+          daysOfCulture,
+          // tankVolume từ batch response (hình trụ, backend đã tính sẵn)
+          tankVolume:
+            tankVolumeM3 > 0
+              ? `${Number(tankVolumeM3).toFixed(2)} m³`
+              : "Chưa cập nhật",
+          initialQuantity: initial,
+          currentQuantity: current,
+          netChange,
+          survivalRate,
+          totalDead,
+          totalFeedKg,
+          totalFeed: totalFeedKg > 0 ? `${totalFeedKg.toFixed(1)} kg` : "0 kg",
+          fcr,
+          estimatedHarvestCount,
+          actualHarvestCount,
         },
+        stages,
       };
     } catch (error) {
       console.error("Lỗi khi tổng hợp dữ liệu Batch Detail:", error);

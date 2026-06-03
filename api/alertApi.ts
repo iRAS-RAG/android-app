@@ -19,7 +19,12 @@ export const alertApi = {
     );
   },
 
-  // Cập nhật trạng thái (Dùng UpdateAlert)
+  // Cập nhật trạng thái qua PATCH (đồng bộ web)
+  updateStatus: (id: string, status: "Acknowledged" | "Dismissed") => {
+    return axiosClient.patch(`/alerts/${id}/status`, { status });
+  },
+
+  // Giữ lại cho backward compat nếu cần PUT full update
   updateAlert: (id: string, data: any) => {
     return axiosClient.put(`/alerts/${id}`, data);
   },

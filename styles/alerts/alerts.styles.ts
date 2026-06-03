@@ -3,18 +3,17 @@ import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 15,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
     backgroundColor: "#FFF",
     borderBottomWidth: 1,
     borderBottomColor: "#F1F5F9",
   },
   headerTop: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 15,
+    marginBottom: 12,
   },
   headerTitle: { ...theme.typography.h2, color: theme.colors.textPrimary },
   headerSubTitle: {
@@ -35,7 +34,7 @@ export const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     height: 44,
-    marginBottom: 15,
+    marginBottom: 10,
   },
   searchInput: {
     flex: 1,
@@ -43,6 +42,92 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.textPrimary,
   },
+
+  // Date range filter
+  dateRangeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  dateInputBox: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingHorizontal: 10,
+    height: 38,
+  },
+  dateInput: {
+    flex: 1,
+    fontSize: 12,
+    color: theme.colors.textPrimary,
+  },
+
+  // Filter dropdowns (tank + status)
+  filterRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 4,
+  },
+  filterDropBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  filterDropText: {
+    flex: 1,
+    fontSize: 12,
+    color: theme.colors.textPrimary,
+    fontWeight: "500",
+  },
+
+  // Picker modal (shared style with dashboard)
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  pickerSheet: {
+    backgroundColor: "#FFF",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 36,
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: theme.colors.textPrimary,
+    marginBottom: 16,
+  },
+  pickerItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  pickerItemText: {
+    fontSize: 15,
+    color: theme.colors.textPrimary,
+  },
+  pickerItemTextActive: {
+    color: theme.colors.primary,
+    fontWeight: "600",
+  },
+
   filterGroup: {
     flexDirection: "row",
     marginBottom: 5,

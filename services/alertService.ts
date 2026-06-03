@@ -39,7 +39,9 @@ export const alertService = {
         color: mapColor(item.status),
         tank: item.fishTankName || "Bể chưa xác định",
         time: formatTime(item.raisedAt || item.createdAt),
+        rawDate: item.raisedAt || item.createdAt || null,
         type: "Sensor",
+        farmingBatchId: item.farmingBatchId || null,
       }));
     } catch (error) {
       console.error("Lỗi service getAlerts:", error);
@@ -112,14 +114,23 @@ export const alertService = {
     }
   },
 
+  // Tiếp nhận (OPEN → ACKNOWLEDGED)
+  acknowledge: async (id: string) => {
+    await alertApi.updateStatus(id, "Acknowledged");
+  },
+
+  // Bỏ qua (OPEN/ACKNOWLEDGED → DISMISSED)
+  dismiss: async (id: string) => {
+    await alertApi.updateStatus(id, "Dismissed");
+  },
+
+  // Kept for backward compat — maps old action strings
   updateStatus: async (id: string, action: "processing" | "resolved") => {
     try {
-      // Backend dùng enum: OPEN, ACKNOWLEDGED, RESOLVED
-      const backendStatus =
-        action === "processing" ? "ACKNOWLEDGED" : "RESOLVED";
-
-      // Gọi API Update (chỉ gửi trường status lên)
-      await alertApi.updateAlert(id, { status: backendStatus });
+      if (action === "processing") {
+        await alertApi.updateStatus(id, "Acknowledged");
+      }
+      // "resolved" is handled by backend when corrective action is created
       return true;
     } catch (error) {
       console.error("Lỗi updateStatus:", error);
@@ -130,21 +141,27 @@ export const alertService = {
 
 // --- Helper Functions ---
 const mapSeverity = (status: string) => {
-  if (status === "OPEN") return "Nguy hiểm";
-  if (status === "ACKNOWLEDGED") return "Cảnh báo";
+  const s = String(status ?? "").toUpperCase();
+  if (s === "OPEN") return "Nguy hiểm";
+  if (s === "ACKNOWLEDGED") return "Cảnh báo";
+  if (s === "DISMISSED") return "Bỏ qua";
   return "An toàn"; // RESOLVED
 };
 
 const mapStatus = (status: string) => {
-  if (status === "OPEN") return "Mới";
-  if (status === "ACKNOWLEDGED") return "Đang xử lý";
+  const s = String(status ?? "").toUpperCase();
+  if (s === "OPEN") return "Mới";
+  if (s === "ACKNOWLEDGED") return "Đang xử lý";
+  if (s === "DISMISSED") return "Đã bỏ qua";
   return "Đã giải quyết"; // RESOLVED
 };
 
 const mapColor = (status: string) => {
-  if (status === "OPEN") return theme.colors.danger; // Đỏ
-  if (status === "ACKNOWLEDGED") return theme.colors.warning; // Vàng
-  return theme.colors.success; // Xanh lá
+  const s = String(status ?? "").toUpperCase();
+  if (s === "OPEN") return theme.colors.danger;
+  if (s === "ACKNOWLEDGED") return theme.colors.warning;
+  if (s === "DISMISSED") return "#94A3B8"; // xám
+  return theme.colors.success; // RESOLVED
 };
 
 const formatTime = (isoString: string) => {
