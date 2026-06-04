@@ -112,6 +112,9 @@ export default function OperationsScreen() {
   const [tabLoading, setTabLoading] = useState(false);
   const [currentStage, setCurrentStage] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [avgWeightKgPerFish, setAvgWeightKgPerFish] = useState<number | null>(
+    null,
+  );
 
   // ── Modal cho ăn ──
   const [modalFeedingVisible, setModalFeedingVisible] = useState(false);
@@ -236,7 +239,10 @@ export default function OperationsScreen() {
 
       // Tìm giai đoạn hiện tại
       const stages = stagesRes?.data?.data || stagesRes?.data || [];
-      setCurrentStage(findActiveStage(Array.isArray(stages) ? stages : []));
+      const active = findActiveStage(Array.isArray(stages) ? stages : []);
+      setCurrentStage(active);
+      // expected weight per fish from stage config → used to auto-fill mortality weight
+      setAvgWeightKgPerFish(active?.expectedWeightKgPerFish ?? null);
     } catch (e) {
       console.error("Lỗi tải dữ liệu tab:", e);
     } finally {
@@ -320,8 +326,16 @@ export default function OperationsScreen() {
       setSelectedFeedId(log.feedTypeId || "");
     } else {
       setEditingFeedingId(null);
-      setFeedAmount("");
-      setSelectedFeedId("");
+      // Auto-select feed type from current stage (match by name), pre-fill recommended weight
+      const stageFeedName = currentStage?.feedTypeNames?.[0] || "";
+      const matched = feedTypes.find(
+        (ft: any) => ft.label?.toLowerCase() === stageFeedName.toLowerCase(),
+      );
+      setSelectedFeedId(matched?.value || "");
+      const recommended = currentStage?.estimatedDailyFeedKg;
+      setFeedAmount(
+        recommended != null ? String(Number(recommended).toFixed(2)) : "",
+      );
     }
     setModalFeedingVisible(true);
   };
@@ -402,7 +416,7 @@ export default function OperationsScreen() {
 
   const handleSaveMortality = async () => {
     if (!deadAmount || !deadWeight) {
-      toast.warning("Vui lòng nhập số lượng và khối lượng cá chết.");
+      toast.warning("Vui lòng nhập số lượng và khối lượng thiệt hại.");
       return;
     }
     const parsedQuantity = parseInt(deadAmount, 10);
@@ -528,7 +542,7 @@ export default function OperationsScreen() {
       activeTab === "feeding"
         ? "Lịch sử ghi nhận cho ăn"
         : activeTab === "mortality"
-          ? "Lịch sử ghi nhận cá chết"
+          ? "Lịch sử ghi nhận thiệt hại"
           : "Quản lý bảo trì";
     const tabData =
       activeTab === "feeding"
@@ -799,7 +813,7 @@ export default function OperationsScreen() {
                       </View>
                       <View style={styles.cardContent}>
                         <Text style={styles.cardTitle} numberOfLines={1}>
-                          Ghi nhận cá chết
+                          Ghi nhận thiệt hại
                         </Text>
                         <Text style={styles.cardSubTitle}>{item.time}</Text>
                         <View style={styles.detailContainer}>
@@ -1094,8 +1108,8 @@ export default function OperationsScreen() {
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>
                   {editingMortalityId
-                    ? "Chỉnh sửa cá chết"
-                    : "Ghi nhận cá chết"}
+                    ? "Chỉnh sửa thiệt hại"
+                    : "Ghi nhận thiệt hại"}
                 </Text>
                 <TouchableOpacity
                   onPress={() => setModalMortalityVisible(false)}
@@ -1125,6 +1139,13 @@ export default function OperationsScreen() {
                   onChangeText={(v) => {
                     setDeadAmount(v);
                     setMortalityWarning(null);
+                    // Auto-fill weight when qty entered and weight is still empty
+                    if (avgWeightKgPerFish != null && deadWeight === "") {
+                      const qty = parseInt(v, 10);
+                      if (!isNaN(qty) && qty > 0) {
+                        setDeadWeight((qty * avgWeightKgPerFish).toFixed(3));
+                      }
+                    }
                   }}
                   placeholder="Ví dụ: 3"
                   returnKeyType="next"

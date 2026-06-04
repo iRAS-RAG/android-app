@@ -93,6 +93,46 @@ export default function DashboardScreen() {
   const [latestPush, setLatestPush] = useState<AlertPush | null>(null);
   const [showPushBanner, setShowPushBanner] = useState(false);
 
+  // Notification dropdown
+  const [showNotiDropdown, setShowNotiDropdown] = useState(false);
+  const [notiAlerts, setNotiAlerts] = useState<any[]>([]);
+  const [notiLoading, setNotiLoading] = useState(false);
+
+  const getTimeAgo = (iso?: string) => {
+    if (!iso) return "Vừa xong";
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "Vừa xong";
+    if (mins < 60) return `${mins} phút trước`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs} giờ trước`;
+    return `${Math.floor(hrs / 24)} ngày trước`;
+  };
+
+  const fetchNotiAlerts = async () => {
+    setNotiLoading(true);
+    try {
+      const res = await axiosClient.get("/alerts?page=1&pageSize=10&statuses=OPEN&statuses=Acknowledged");
+      const items: any[] = res.data?.data?.items || res.data?.data || [];
+      setNotiAlerts(
+        [...items].sort((a, b) =>
+          new Date(b.raisedAt || b.createdAt || 0).getTime() -
+          new Date(a.raisedAt || a.createdAt || 0).getTime()
+        ).slice(0, 10)
+      );
+    } catch {
+      setNotiAlerts([]);
+    } finally {
+      setNotiLoading(false);
+    }
+  };
+
+  const handleBellPress = () => {
+    setLiveAlertCount(0);
+    if (!showNotiDropdown) fetchNotiAlerts();
+    setShowNotiDropdown((v) => !v);
+  };
+
   useAlertSignalR({
     onReceiveAlert: (push) => {
       setLatestPush(push);
@@ -343,7 +383,7 @@ export default function DashboardScreen() {
               </View>
               <TouchableOpacity
                 style={styles.notiBtn}
-                onPress={() => { setLiveAlertCount(0); router.push("/alerts"); }}
+                onPress={handleBellPress}
               >
                 <Ionicons
                   name={(stats.totalAlerts + liveAlertCount) > 0 ? "notifications" : "notifications-outline"}
@@ -825,6 +865,92 @@ export default function DashboardScreen() {
           </View>
         </ScrollView>
       </SafeAreaView>
+
+      {/* ── NOTIFICATION DROPDOWN ── */}
+      <Modal visible={showNotiDropdown} transparent animationType="fade">
+        <TouchableOpacity
+          style={{ flex: 1 }}
+          activeOpacity={1}
+          onPress={() => setShowNotiDropdown(false)}
+        >
+          <View
+            style={{
+              position: "absolute",
+              top: 80,
+              right: 12,
+              width: 300,
+              backgroundColor: "#FFF",
+              borderRadius: 14,
+              shadowColor: "#000",
+              shadowOpacity: 0.15,
+              shadowRadius: 12,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: 10,
+              overflow: "hidden",
+            }}
+          >
+            <View style={{ paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+              <Text style={{ fontWeight: "700", fontSize: 14, color: "#0F172A" }}>Thông báo cảnh báo</Text>
+            </View>
+            {notiLoading ? (
+              <View style={{ padding: 20, alignItems: "center" }}>
+                <Ionicons name="reload-outline" size={20} color="#64748B" />
+              </View>
+            ) : notiAlerts.length === 0 ? (
+              <View style={{ padding: 20, alignItems: "center" }}>
+                <Text style={{ color: "#94A3B8", fontSize: 13 }}>Không có cảnh báo mới</Text>
+              </View>
+            ) : (
+              notiAlerts.map((a: any, i: number) => (
+                <TouchableOpacity
+                  key={a.id || i}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingHorizontal: 14,
+                    paddingVertical: 10,
+                    borderBottomWidth: i < notiAlerts.length - 1 ? 1 : 0,
+                    borderBottomColor: "#F8FAFC",
+                  }}
+                  onPress={() => {
+                    setShowNotiDropdown(false);
+                    if (a.id) {
+                      router.push({
+                        pathname: "/alertDetail/[id]",
+                        params: {
+                          id: a.id,
+                          fallbackLimit: `${a.minThreshold ?? ""} - ${a.maxThreshold ?? ""}`,
+                          fallbackValue: String(a.triggerValue ?? ""),
+                          fallbackUnit: a.unitOfMeasure || "",
+                          fallbackSensorName: a.sensorTypeName || "",
+                          fallbackTankId: a.fishTankId || "",
+                        },
+                      });
+                    }
+                  }}
+                >
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: a.status === "ACKNOWLEDGED" ? "#F59E0B" : "#EF4444", marginRight: 10, flexShrink: 0 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#0F172A" }} numberOfLines={1}>
+                      {a.fishTankName || "Hệ thống"}: Cảnh báo {a.sensorTypeName || "Cảm biến"}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: "#64748B", marginTop: 1 }}>
+                      {getTimeAgo(a.raisedAt || a.createdAt)}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
+                </TouchableOpacity>
+              ))
+            )}
+            <TouchableOpacity
+              style={{ paddingVertical: 12, alignItems: "center", borderTopWidth: 1, borderTopColor: "#F1F5F9" }}
+              onPress={() => { setShowNotiDropdown(false); router.push("/alerts"); }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: "700", color: theme.colors.primary }}>Xem tất cả</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* ── TANK PICKER MODAL ── */}
       <Modal visible={showTankPicker} transparent animationType="fade">

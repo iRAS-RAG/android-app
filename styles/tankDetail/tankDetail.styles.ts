@@ -39,7 +39,9 @@ export const styles = StyleSheet.create({
   metricTime: { fontSize: 10, color: theme.colors.textSecondary },
   chartCard: {
     margin: 20,
-    padding: 15,
+    paddingTop: 15,
+    paddingBottom: 15,
+    paddingHorizontal: 4,
     backgroundColor: "#FFF",
     borderRadius: 16,
     elevation: 3,

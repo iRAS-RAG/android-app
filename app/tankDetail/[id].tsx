@@ -31,9 +31,9 @@ const SENSOR_CARD_W = screenWidth - 40 - 76; // section pad(40) + 2 arrows(76)
 // chart-kit defaults: style.paddingRight=64 (left pad), style.paddingTop=16
 // Y data area height = CHART_H * 0.75 (verticalLabelsHeightPercentage)
 const CHART_H = 230;
-const CHART_Y_AXIS_W = 64;   // chart-kit's paddingRight = Y-axis left margin
+const CHART_Y_AXIS_W = 40;   // Y-axis panel width: ~25px for label text + 15px gap to data
 const CHART_LEFT_PAD = 16;   // extra left space so first dot/label isn't clipped
-const CHART_LABEL_X = CHART_Y_AXIS_W - 12; // label x (paddingRight - yLabelsOffset)
+const CHART_LABEL_X = CHART_Y_AXIS_W - 12; // kept for reference; labels now use textAnchor="start" at x=0
 const CHART_TOP_PAD = 16;    // chart-kit's paddingTop default
 const CHART_INNER_H = CHART_H * 0.75; // 172.5 — matches chart-kit's (height*3/4) exactly
 const CHART_BOT_PAD = CHART_H - CHART_TOP_PAD - CHART_INNER_H; // 42
@@ -561,8 +561,8 @@ export default function TankDetailScreen() {
 
         {/* ══ 2. CHART ══ */}
         <View style={styles.chartCard}>
-          {/* Header: title + filter dropdown */}
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          {/* Header: title + filter dropdown — restore 15px from border (card has 4px, +11px inline) */}
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4, paddingHorizontal: 11 }}>
             <Text style={[styles.chartTitle, { flex: 1, marginRight: 8 }]} numberOfLines={1}>
               Xu hướng {activeSensor?.label ?? ""}
             </Text>
@@ -589,7 +589,7 @@ export default function TankDetailScreen() {
           </View>
 
           {/* Countdown */}
-          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10, gap: 5 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10, gap: 5, paddingHorizontal: 11 }}>
             <Ionicons name="refresh-outline" size={13} color="#94A3B8" />
             <Text style={{ fontSize: 12, color: "#94A3B8" }}>
               Cập nhật sau: <Text style={{ fontWeight: "700" }}>{formatCountdown(countdown)}</Text>
@@ -608,14 +608,7 @@ export default function TankDetailScreen() {
               <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
                 <View style={{ width: CHART_Y_AXIS_W }}>
                   {sensorUnit ? (
-                    <Text style={{
-                      fontSize: 10,
-                      fontWeight: "600",
-                      color: "#9CA3AF",
-                      textAlign: "right",
-                      // Match Y-axis textAnchor="end" at x=CHART_LABEL_X (offset from right = CHART_Y_AXIS_W - CHART_LABEL_X)
-                      paddingRight: CHART_Y_AXIS_W - CHART_LABEL_X,
-                    }}>
+                    <Text style={{ fontSize: 10, fontWeight: "600", color: "#9CA3AF" }}>
                       {sensorUnit}
                     </Text>
                   ) : null}
@@ -660,12 +653,12 @@ export default function TankDetailScreen() {
                         return (
                           <SvgText
                             key={i}
-                            x={CHART_LABEL_X}
+                            x={0}
                             y={y + 4}
                             fontSize={12}
                             fontWeight={isThreshold ? "700" : "400"}
                             fill={isThreshold ? "#10B981" : "#64748B"}
-                            textAnchor="end"
+                            textAnchor="start"
                           >
                             {value.toFixed(1)}
                           </SvgText>
@@ -753,10 +746,10 @@ export default function TankDetailScreen() {
               </View>
 
               {/* Divider */}
-              <View style={{ height: 1, backgroundColor: "#F1F5F9", marginVertical: 14 }} />
+              <View style={{ height: 1, backgroundColor: "#F1F5F9", marginVertical: 14, marginHorizontal: 11 }} />
 
               {/* 3 thông tin bên dưới chart */}
-              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 11 }}>
                 {/* Ngưỡng an toàn */}
                 <View style={localStyles.statBox}>
                   <Text style={localStyles.statLabel}>NGƯỠNG AN TOÀN</Text>

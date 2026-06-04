@@ -24,7 +24,7 @@ export default function UserGuideScreen() {
     },
     {
       title: "3. Quản lý lô nuôi & Cho ăn",
-      desc: "Sử dụng tính năng Vận hành để ghi chép lượng thức ăn và tỷ lệ hao hụt (Cá chết) hàng ngày nhằm giúp AI tính toán FCR chính xác nhất.",
+      desc: "Sử dụng tính năng Vận hành để ghi chép lượng thức ăn và tỷ lệ hao hụt (Vật nuôi chết) hàng ngày nhằm giúp AI tính toán FCR chính xác nhất.",
     },
   ];
 

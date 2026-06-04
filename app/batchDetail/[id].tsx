@@ -28,11 +28,26 @@ import { theme as appTheme } from "@/theme";
 const getStatusConfig = (status: string | number) => {
   const s = String(status).toUpperCase().trim();
   if (s === "0" || s === "1" || s === "ACTIVE" || s === "ĐANG NUÔI")
-    return { label: "ĐANG NUÔI", bg: "#DCFCE7", text: "#166534", isActive: true };
+    return {
+      label: "ĐANG NUÔI",
+      bg: "#DCFCE7",
+      text: "#166534",
+      isActive: true,
+    };
   if (s === "2" || s === "HARVESTED" || s === "THU HOẠCH" || s === "THU HOACH")
-    return { label: "ĐÃ THU HOẠCH", bg: "#F1F5F9", text: "#64748B", isActive: false };
+    return {
+      label: "ĐÃ THU HOẠCH",
+      bg: "#F1F5F9",
+      text: "#64748B",
+      isActive: false,
+    };
   if (s === "1" || s === "PAUSED" || s === "TẠM DỪNG")
-    return { label: "TẠM DỪNG", bg: "#FEF9C3", text: "#854D0E", isActive: false };
+    return {
+      label: "TẠM DỪNG",
+      bg: "#FEF9C3",
+      text: "#854D0E",
+      isActive: false,
+    };
   if (s === "3" || s === "TERMINATED" || s === "ĐÃ HỦY")
     return { label: "ĐÃ HỦY", bg: "#FEE2E2", text: "#991B1B", isActive: false };
   return { label: "KHỞI TẠO", bg: "#E0E7FF", text: "#3730A3", isActive: false };
@@ -85,7 +100,13 @@ const StatWidget = ({
         </Text>
         <Icon name={icon} size={18} color={appTheme.colors.primary} />
       </View>
-      <View style={{ flexDirection: "row", alignItems: "baseline", flexWrap: "wrap" }}>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "baseline",
+          flexWrap: "wrap",
+        }}
+      >
         <Text style={[styles.widgetValue, valueColor && { color: valueColor }]}>
           {value ?? "—"}
         </Text>
@@ -140,7 +161,9 @@ const StageCard = ({
         color="#94A3B8"
         style={{ width: 22 }}
       />
-      <Text style={{ fontSize: 13, color: "#64748B", width: 120 }}>{label}</Text>
+      <Text style={{ fontSize: 13, color: "#64748B", width: 120 }}>
+        {label}
+      </Text>
       <Text
         style={{
           fontSize: 13,
@@ -176,18 +199,13 @@ const StageCard = ({
           style={[
             styles.stageSeqBadge,
             {
-              backgroundColor: isActive
-                ? appTheme.colors.success
-                : "#94A3B8",
+              backgroundColor: isActive ? appTheme.colors.success : "#94A3B8",
             },
           ]}
         >
           <Text style={styles.stageSeqText}>{stage.sequence}</Text>
         </View>
-        <Text
-          style={[styles.stageName, { flex: 1 }]}
-          numberOfLines={2}
-        >
+        <Text style={[styles.stageName, { flex: 1 }]} numberOfLines={2}>
           {stage.stageName}
         </Text>
         {isActive && (
@@ -226,11 +244,7 @@ const StageCard = ({
         label="Thời gian"
         value={`${startStr} → ${endStr}`}
       />
-      <InfoRow
-        icon="leaf-outline"
-        label="Loại cám"
-        value={feedNames}
-      />
+      <InfoRow icon="leaf-outline" label="Loại cám" value={feedNames} />
       {stage.expectedCount != null && (
         <InfoRow
           icon="fish-outline"
@@ -322,8 +336,13 @@ export default function BatchDetailScreen() {
   if (!data?.batchInfo) {
     return (
       <View style={styles.center}>
-        <Text style={{ color: "#64748B" }}>Không tìm thấy thông tin lô nuôi.</Text>
-        <TouchableOpacity style={{ marginTop: 15 }} onPress={() => router.back()}>
+        <Text style={{ color: "#64748B" }}>
+          Không tìm thấy thông tin lô nuôi.
+        </Text>
+        <TouchableOpacity
+          style={{ marginTop: 15 }}
+          onPress={() => router.back()}
+        >
           <Text style={{ color: appTheme.colors.primary, fontWeight: "600" }}>
             Quay lại
           </Text>
@@ -371,7 +390,11 @@ export default function BatchDetailScreen() {
         {/* ── INFO CARD ── */}
         <View style={styles.infoCard}>
           <View
-            style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+            }}
           >
             <View style={{ flex: 1, marginRight: 12 }}>
               <Text style={styles.batchTitle}>{batchInfo.name}</Text>
@@ -383,7 +406,9 @@ export default function BatchDetailScreen() {
                     color={appTheme.colors.primary}
                     style={{ marginRight: 7 }}
                   />
-                  <Text style={styles.infoRowText}>Vị trí: {batchInfo.tankName}</Text>
+                  <Text style={styles.infoRowText}>
+                    Vị trí: {batchInfo.tankName}
+                  </Text>
                 </View>
                 <View style={styles.infoRow}>
                   <MaterialCommunityIcons
@@ -392,7 +417,9 @@ export default function BatchDetailScreen() {
                     color="#64748B"
                     style={{ marginRight: 7 }}
                   />
-                  <Text style={styles.infoRowText}>Loài: {batchInfo.speciesName}</Text>
+                  <Text style={styles.infoRowText}>
+                    Loài: {batchInfo.speciesName}
+                  </Text>
                 </View>
                 <View style={styles.infoRow}>
                   <Ionicons
@@ -414,12 +441,16 @@ export default function BatchDetailScreen() {
                   />
                   <Text style={styles.infoRowText}>
                     {fmtDate(batchInfo.startDate)}
-                    {batchInfo.endDate ? ` → ${fmtDate(batchInfo.endDate)}` : ""}
+                    {batchInfo.endDate
+                      ? ` → ${fmtDate(batchInfo.endDate)}`
+                      : ""}
                   </Text>
                 </View>
               </View>
             </View>
-            <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
+            <View
+              style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}
+            >
               <Text style={[styles.statusText, { color: statusConfig.text }]}>
                 {statusConfig.label}
               </Text>
@@ -432,7 +463,14 @@ export default function BatchDetailScreen() {
         {/* ── KẾ HOẠCH GIAI ĐOẠN ── */}
         {stages.length > 0 && (
           <View style={{ marginBottom: 24 }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 12,
+              }}
+            >
               <Text style={styles.sectionTitle}>Kế hoạch giai đoạn</Text>
               <Text style={{ fontSize: 12, color: "#64748B" }}>
                 {stages.length} giai đoạn
@@ -527,12 +565,14 @@ export default function BatchDetailScreen() {
           />
           {/* 5 */}
           <StatWidget
-            label="TỔNG CÁ CHẾT"
+            label="TỔNG THIỆT HẠI"
             value={batchInfo.totalDead}
             unit="con"
             icon="skull-outline"
             iconLib="MaterialCommunityIcons"
-            valueColor={batchInfo.totalDead > 0 ? appTheme.colors.danger : undefined}
+            valueColor={
+              batchInfo.totalDead > 0 ? appTheme.colors.danger : undefined
+            }
           />
           {/* 6 */}
           <StatWidget
@@ -543,7 +583,9 @@ export default function BatchDetailScreen() {
           />
           {/* 7 */}
           <StatWidget
-            label={statusConfig.isActive ? "DỰ KIẾN THU HOẠCH" : "KẾT QUẢ THỰC TẾ"}
+            label={
+              statusConfig.isActive ? "DỰ KIẾN THU HOẠCH" : "KẾT QUẢ THỰC TẾ"
+            }
             value={
               statusConfig.isActive
                 ? (batchInfo.estimatedHarvestCount ?? "—")
@@ -570,9 +612,20 @@ export default function BatchDetailScreen() {
 
         {/* Tổng cám (wide card) */}
         <View style={styles.feedCard}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
             <Text style={styles.feedCardLabel}>TỔNG CÁM TIÊU THỤ CỦA VỤ</Text>
-            <FontAwesome5 name="weight" size={18} color={appTheme.colors.primary} />
+            <FontAwesome5
+              name="weight"
+              size={18}
+              color={appTheme.colors.primary}
+            />
           </View>
           <Text style={styles.feedCardValue}>{batchInfo.totalFeed}</Text>
         </View>
@@ -702,7 +755,12 @@ const styles = StyleSheet.create({
   },
   widgetValue: { fontSize: 22, fontWeight: "800", color: "#1E293B" },
   widgetUnit: { fontSize: 12, color: "#64748B", fontWeight: "600" },
-  widgetSub: { fontSize: 10, color: "#94A3B8", marginTop: 4, fontStyle: "italic" },
+  widgetSub: {
+    fontSize: 10,
+    color: "#94A3B8",
+    marginTop: 4,
+    fontStyle: "italic",
+  },
 
   // Feed card (full width)
   feedCard: {
@@ -717,7 +775,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
   },
-  feedCardLabel: { fontSize: 11, fontWeight: "700", color: "#64748B", textTransform: "uppercase" },
+  feedCardLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#64748B",
+    textTransform: "uppercase",
+  },
   feedCardValue: { fontSize: 26, fontWeight: "800", color: "#3B82F6" },
 
   // Stage cards — width set inline theo STAGE_CARD_WIDTH
