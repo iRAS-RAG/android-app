@@ -105,6 +105,8 @@ const StageCard = ({
   isActive: boolean;
   isFinished: boolean;
 }) => {
+  const { width: sw } = useWindowDimensions();
+  const cardWidth = sw - 32;
   const startStr = fmtDate(stage.actualStartDate || stage.estimatedStartDate);
   const endStr = fmtDate(stage.actualEndDate || stage.estimatedEndDate);
   const feedNames: string =
@@ -157,7 +159,7 @@ const StageCard = ({
     <View
       style={[
         styles.stageCard,
-        { width: STAGE_CARD_WIDTH },
+        { width: cardWidth },
         isActive && styles.stageCardActive,
         !isActive && isFinished && { opacity: 0.65 },
       ]}

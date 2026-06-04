@@ -608,7 +608,14 @@ export default function TankDetailScreen() {
               <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
                 <View style={{ width: CHART_Y_AXIS_W }}>
                   {sensorUnit ? (
-                    <Text style={{ fontSize: 10, fontWeight: "600", color: "#9CA3AF" }}>
+                    <Text style={{
+                      fontSize: 10,
+                      fontWeight: "600",
+                      color: "#9CA3AF",
+                      textAlign: "right",
+                      // Match Y-axis textAnchor="end" at x=CHART_LABEL_X (offset from right = CHART_Y_AXIS_W - CHART_LABEL_X)
+                      paddingRight: CHART_Y_AXIS_W - CHART_LABEL_X,
+                    }}>
                       {sensorUnit}
                     </Text>
                   ) : null}

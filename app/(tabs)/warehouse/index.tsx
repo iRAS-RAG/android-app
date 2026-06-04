@@ -1,6 +1,12 @@
 import { theme } from "@/theme";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   SafeAreaView,
@@ -28,7 +34,9 @@ import { toast } from "@/utils/toast";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const getBatchStatusInfo = (status: any) => {
-  const s = String(status ?? "").toUpperCase().trim();
+  const s = String(status ?? "")
+    .toUpperCase()
+    .trim();
   if (s === "0" || s === "ACTIVE" || s === "ĐANG NUÔI")
     return { label: "Đang nuôi", color: "#10B981", bg: "#D1FAE5" };
   if (s === "1" || s === "PAUSED" || s === "TẠM DỪNG")
@@ -41,12 +49,11 @@ const getBatchStatusInfo = (status: any) => {
 };
 
 const isHarvestedStatus = (status: any) => {
-  const s = String(status ?? "").toUpperCase().trim();
+  const s = String(status ?? "")
+    .toUpperCase()
+    .trim();
   return (
-    s === "2" ||
-    s === "HARVESTED" ||
-    s === "THU HOẠCH" ||
-    s === "THU HOACH"
+    s === "2" || s === "HARVESTED" || s === "THU HOẠCH" || s === "THU HOACH"
   );
 };
 
@@ -77,7 +84,9 @@ export default function OperationsScreen() {
   const router = useRouter();
 
   // Param từ batchDetail: auto-select vụ nuôi khi navigate từ chi tiết lô
-  const { batchId: paramBatchId } = useLocalSearchParams<{ batchId?: string }>();
+  const { batchId: paramBatchId } = useLocalSearchParams<{
+    batchId?: string;
+  }>();
   const autoSelectedRef = useRef(false);
 
   // ── Phase 1: Danh sách vụ nuôi ──
@@ -91,7 +100,9 @@ export default function OperationsScreen() {
 
   // ── Phase 2: Vụ nuôi đã chọn ──
   const [selectedBatch, setSelectedBatch] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<"feeding" | "mortality" | "maintenance">("feeding");
+  const [activeTab, setActiveTab] = useState<
+    "feeding" | "mortality" | "maintenance"
+  >("feeding");
 
   // ── Dữ liệu từng tab ──
   const [feedTypes, setFeedTypes] = useState<any[]>([]);
@@ -112,7 +123,9 @@ export default function OperationsScreen() {
   const [modalMortalityVisible, setModalMortalityVisible] = useState(false);
   const [deadAmount, setDeadAmount] = useState("");
   const [deadWeight, setDeadWeight] = useState("");
-  const [editingMortalityId, setEditingMortalityId] = useState<string | null>(null);
+  const [editingMortalityId, setEditingMortalityId] = useState<string | null>(
+    null,
+  );
   const [mortalityWarning, setMortalityWarning] = useState<string | null>(null);
   const [isSavingMortality, setIsSavingMortality] = useState(false);
 
@@ -145,7 +158,8 @@ export default function OperationsScreen() {
 
   // Auto-select batch khi navigate từ batchDetail với paramBatchId
   useEffect(() => {
-    if (!paramBatchId || batches.length === 0 || autoSelectedRef.current) return;
+    if (!paramBatchId || batches.length === 0 || autoSelectedRef.current)
+      return;
     const batch = batches.find((b) => b.id === paramBatchId);
     if (batch) {
       autoSelectedRef.current = true;
@@ -208,9 +222,7 @@ export default function OperationsScreen() {
             quantity: log.quantity,
             lostWeightKg: log.lostWeightKg ?? null,
             rawDate: log.date,
-            time: log.date
-              ? new Date(log.date).toLocaleString("vi-VN")
-              : "N/A",
+            time: log.date ? new Date(log.date).toLocaleString("vi-VN") : "N/A",
           }))
           .sort(
             (a: any, b: any) =>
@@ -223,8 +235,7 @@ export default function OperationsScreen() {
       setMaintenanceLogs(mLogs);
 
       // Tìm giai đoạn hiện tại
-      const stages =
-        stagesRes?.data?.data || stagesRes?.data || [];
+      const stages = stagesRes?.data?.data || stagesRes?.data || [];
       setCurrentStage(findActiveStage(Array.isArray(stages) ? stages : []));
     } catch (e) {
       console.error("Lỗi tải dữ liệu tab:", e);
@@ -244,17 +255,24 @@ export default function OperationsScreen() {
   // ─── Filter danh sách vụ nuôi ────────────────────────────────────────────
 
   const uniqueTankNames = useMemo(
-    () =>
-      Array.from(new Set(batches.map((b) => b.tankName).filter(Boolean))),
+    () => Array.from(new Set(batches.map((b) => b.tankName).filter(Boolean))),
     [batches],
   );
 
   const filteredBatches = useMemo(() => {
     const statusOrder = (b: any) => {
-      const s = String(b.status ?? "").toUpperCase().trim();
+      const s = String(b.status ?? "")
+        .toUpperCase()
+        .trim();
       if (s === "0" || s === "ACTIVE" || s === "ĐANG NUÔI") return 0;
       if (s === "1" || s === "PAUSED" || s === "TẠM DỪNG") return 1;
-      if (s === "2" || s === "HARVESTED" || s === "THU HOẠCH" || s === "THU HOACH") return 2;
+      if (
+        s === "2" ||
+        s === "HARVESTED" ||
+        s === "THU HOẠCH" ||
+        s === "THU HOACH"
+      )
+        return 2;
       return 3;
     };
 
@@ -263,13 +281,20 @@ export default function OperationsScreen() {
         const matchTank = !batchTankFilter || b.tankName === batchTankFilter;
         if (!matchTank) return false;
         if (!batchStatusFilter) return true;
-        const s = String(b.status ?? "").toUpperCase().trim();
+        const s = String(b.status ?? "")
+          .toUpperCase()
+          .trim();
         if (batchStatusFilter === "0")
           return s === "0" || s === "ACTIVE" || s === "ĐANG NUÔI";
         if (batchStatusFilter === "1")
           return s === "1" || s === "PAUSED" || s === "TẠM DỪNG";
         if (batchStatusFilter === "2")
-          return s === "2" || s === "HARVESTED" || s === "THU HOẠCH" || s === "THU HOACH";
+          return (
+            s === "2" ||
+            s === "HARVESTED" ||
+            s === "THU HOẠCH" ||
+            s === "THU HOACH"
+          );
         if (batchStatusFilter === "3")
           return s === "3" || s === "TERMINATED" || s === "ĐÃ HỦY";
         return true;
@@ -383,7 +408,7 @@ export default function OperationsScreen() {
     const parsedQuantity = parseInt(deadAmount, 10);
     const parsedWeight = parseFloat(deadWeight);
     if (isNaN(parsedQuantity) || parsedQuantity <= 0) {
-      toast.error("Số lượng cá chết phải là số nguyên dương.");
+      toast.error("Số lượng thiệt hại phải là số nguyên dương.");
       return;
     }
     if (isNaN(parsedWeight) || parsedWeight <= 0) {
@@ -435,14 +460,20 @@ export default function OperationsScreen() {
       const res = await alertApi.getAllAlerts(1, 100);
       const all = res.data?.data?.items || res.data?.data || [];
       const mapped = all
-        .filter((a: any) => String(a.status).toUpperCase() === "ACKNOWLEDGED" && !a.hasCorrectiveAction)
+        .filter(
+          (a: any) =>
+            String(a.status).toUpperCase() === "ACKNOWLEDGED" &&
+            !a.hasCorrectiveAction,
+        )
         .map((a: any) => ({
           label: `Cảnh báo ${a.sensorTypeName || "hệ thống"} — ${a.fishTankName || "Bể nuôi"}`,
           value: a.id,
           farmingBatchId: a.farmingBatchId || null,
         }));
       // Prioritise alerts belonging to this batch; fall back to all ACKNOWLEDGED
-      const batchSpecific = mapped.filter((a: any) => a.farmingBatchId && a.farmingBatchId === selectedBatch?.id);
+      const batchSpecific = mapped.filter(
+        (a: any) => a.farmingBatchId && a.farmingBatchId === selectedBatch?.id,
+      );
       setBatchAlerts(batchSpecific.length > 0 ? batchSpecific : mapped);
     } catch {
       setBatchAlerts([]);
@@ -609,8 +640,16 @@ export default function OperationsScreen() {
           >
             {(
               [
-                { key: "feeding", label: "Thức ăn", color: theme.colors.primary },
-                { key: "mortality", label: "Thiệt hại", color: theme.colors.danger },
+                {
+                  key: "feeding",
+                  label: "Thức ăn",
+                  color: theme.colors.primary,
+                },
+                {
+                  key: "mortality",
+                  label: "Thiệt hại",
+                  color: theme.colors.danger,
+                },
                 { key: "maintenance", label: "Bảo trì", color: "#10B981" },
               ] as const
             ).map((tab) => (
@@ -708,9 +747,7 @@ export default function OperationsScreen() {
                   size={52}
                   color="#CBD5E1"
                 />
-                <Text
-                  style={{ color: "#64748B", marginTop: 10, fontSize: 14 }}
-                >
+                <Text style={{ color: "#64748B", marginTop: 10, fontSize: 14 }}>
                   Chưa có ghi nhận nào
                 </Text>
               </View>
@@ -779,7 +816,9 @@ export default function OperationsScreen() {
                           </View>
                           {item.lostWeightKg != null && (
                             <View style={styles.detailRow}>
-                              <Text style={styles.detailLabel}>Khối lượng:</Text>
+                              <Text style={styles.detailLabel}>
+                                Khối lượng:
+                              </Text>
                               <Text
                                 style={[
                                   styles.detailValue,
@@ -807,6 +846,7 @@ export default function OperationsScreen() {
                         id: item.alertId,
                         logId: item.id,
                         mode: "view",
+                        alertTitle: item.alertTitle || "",
                       },
                     })
                   }
@@ -822,12 +862,22 @@ export default function OperationsScreen() {
                       />
                     </View>
                     <View style={styles.cardContent}>
+                      {/* Alert name as title */}
                       <Text style={styles.cardTitle} numberOfLines={2}>
-                        {item.actionTaken || "Hành động khắc phục"}
+                        {item.alertTitle || "Cảnh báo"}
                       </Text>
                       <Text style={styles.cardSubTitle}>{item.time}</Text>
-                      {item.notes ? (
-                        <View style={styles.detailContainer}>
+                      <View style={styles.detailContainer}>
+                        <View style={styles.detailRow}>
+                          <Text style={styles.detailLabel}>Hành động:</Text>
+                          <Text
+                            style={[styles.detailValue, { color: "#1E293B" }]}
+                            numberOfLines={2}
+                          >
+                            {item.actionTaken || "—"}
+                          </Text>
+                        </View>
+                        {item.notes ? (
                           <View style={styles.detailRow}>
                             <Text style={styles.detailLabel}>Ghi chú:</Text>
                             <Text
@@ -837,10 +887,15 @@ export default function OperationsScreen() {
                               {item.notes}
                             </Text>
                           </View>
-                        </View>
-                      ) : null}
+                        ) : null}
+                      </View>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color="#CBD5E1" style={{ marginLeft: 6 }} />
+                    <Ionicons
+                      name="chevron-forward"
+                      size={16}
+                      color="#CBD5E1"
+                      style={{ marginLeft: 6 }}
+                    />
                   </View>
                 </TouchableOpacity>
               );
@@ -914,9 +969,7 @@ export default function OperationsScreen() {
                 <Text style={styles.modalTitle}>
                   {editingFeedingId ? "Sửa ghi nhận" : "Thêm cho ăn mới"}
                 </Text>
-                <TouchableOpacity
-                  onPress={() => setModalFeedingVisible(false)}
-                >
+                <TouchableOpacity onPress={() => setModalFeedingVisible(false)}>
                   <Ionicons name="close" size={24} color="#64748B" />
                 </TouchableOpacity>
               </View>
@@ -964,9 +1017,8 @@ export default function OperationsScreen() {
                     <Text
                       style={{ fontSize: 12, color: "#475569", marginTop: 2 }}
                     >
-                      Đề xuất:{" "}
-                      {currentStage.estimatedDailyFeedKg?.toFixed(2)} kg/ngày
-                      · {currentStage.frequencyPerDay} lần/ngày
+                      Đề xuất: {currentStage.estimatedDailyFeedKg?.toFixed(2)}{" "}
+                      kg/ngày · {currentStage.frequencyPerDay} lần/ngày
                     </Text>
                   </View>
                 )}
@@ -1007,9 +1059,7 @@ export default function OperationsScreen() {
                     }}
                   >
                     <Text style={{ fontSize: 14 }}>⚠️</Text>
-                    <Text
-                      style={{ flex: 1, fontSize: 12, color: "#B45309" }}
-                    >
+                    <Text style={{ flex: 1, fontSize: 12, color: "#B45309" }}>
                       Lượng nhập ({feedAmount} kg) vượt đề xuất giai đoạn (
                       {currentStage?.estimatedDailyFeedKg?.toFixed(2)} kg/ngày).
                     </Text>
@@ -1067,7 +1117,7 @@ export default function OperationsScreen() {
                   </Text>
                 </View>
 
-                <Text style={styles.label}>Số lượng cá chết (con) *</Text>
+                <Text style={styles.label}>Số lượng thiệt hại (con) *</Text>
                 <TextInput
                   style={styles.input}
                   keyboardType="numeric"
@@ -1079,7 +1129,7 @@ export default function OperationsScreen() {
                   placeholder="Ví dụ: 3"
                   returnKeyType="next"
                 />
-                <Text style={styles.label}>Khối lượng cá chết (kg) *</Text>
+                <Text style={styles.label}>Khối lượng thiệt hại (kg) *</Text>
                 <TextInput
                   style={styles.input}
                   keyboardType="decimal-pad"
@@ -1309,7 +1359,9 @@ export default function OperationsScreen() {
         <View style={styles.headerTop}>
           <View style={styles.headerTitleContainer}>
             <Text style={styles.headerTitle}>Vận hành</Text>
-            <Text style={styles.headerSubTitle}>Chọn vụ nuôi để xem chi tiết</Text>
+            <Text style={styles.headerSubTitle}>
+              Chọn vụ nuôi để xem chi tiết
+            </Text>
           </View>
         </View>
 
@@ -1539,8 +1591,7 @@ export default function OperationsScreen() {
                       batchTankFilter === opt.value
                         ? theme.colors.primary
                         : "#1E293B",
-                    fontWeight:
-                      batchTankFilter === opt.value ? "700" : "400",
+                    fontWeight: batchTankFilter === opt.value ? "700" : "400",
                   }}
                 >
                   {opt.label}
@@ -1609,8 +1660,7 @@ export default function OperationsScreen() {
                       batchStatusFilter === opt.value
                         ? theme.colors.primary
                         : "#1E293B",
-                    fontWeight:
-                      batchStatusFilter === opt.value ? "700" : "400",
+                    fontWeight: batchStatusFilter === opt.value ? "700" : "400",
                   }}
                 >
                   {opt.label}

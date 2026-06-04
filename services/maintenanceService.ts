@@ -105,23 +105,39 @@ export const maintenanceService = {
 
       if (batchAlertIds.size === 0) return [];
 
+      // Build alertMap for name lookup
+      const alertMap = new Map<string, any>(
+        allAlerts.map((a: any) => [a.id as string, a])
+      );
+
       // Bước 2: Lấy tất cả corrective actions, lọc theo alertId
       const logsRes = await maintenanceApi.getCorrectiveActions();
       const logs = logsRes.data?.data?.items || logsRes.data?.data || [];
 
       return logs
         .filter((log: any) => batchAlertIds.has(log.alertId))
-        .map((log: any) => ({
-          id: log.id,
-          alertId: log.alertId,
-          actionTaken: log.actionTaken || "",
-          notes: log.notes || "",
-          rawDate: log.createdAt || log.createdDate,
-          time:
-            log.createdAt || log.createdDate
-              ? new Date(log.createdAt || log.createdDate).toLocaleString("vi-VN")
+        .map((log: any) => {
+          const alert = alertMap.get(log.alertId);
+          // sensorTypeName/fishTankName may come from backend DTO (after update) or from alertMap
+          const sensorName = log.sensorTypeName || alert?.sensorTypeName || "";
+          const tankName = log.fishTankName || alert?.fishTankName || "";
+          const alertTitle = tankName && sensorName
+            ? `${tankName} – ${sensorName}`
+            : sensorName || tankName || "Cảnh báo";
+          // backend DTO uses `timestamp`; fallback to createdAt/createdDate for old data
+          const rawDate = log.timestamp || log.createdAt || log.createdDate || null;
+          return {
+            id: log.id,
+            alertId: log.alertId,
+            alertTitle,
+            actionTaken: log.actionTaken || "",
+            notes: log.notes || "",
+            rawDate,
+            time: rawDate
+              ? new Date(rawDate).toLocaleString("vi-VN")
               : "N/A",
-        }))
+          };
+        })
         .sort(
           (a: any, b: any) =>
             new Date(b.rawDate || 0).getTime() - new Date(a.rawDate || 0).getTime(),
