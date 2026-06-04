@@ -2,7 +2,8 @@ import axiosClient from "./axiosClient";
 
 export const alertApi = {
   // Gọi đến AlertController: GetAllAlerts
-  getAllAlerts: (page = 1, pageSize = 10) => {
+  // Note: backend does not support array statuses filter — fetch large page and filter client-side
+  getAllAlerts: (page = 1, pageSize = 100) => {
     return axiosClient.get(`/alerts?page=${page}&pageSize=${pageSize}`);
   },
 

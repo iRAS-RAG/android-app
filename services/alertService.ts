@@ -150,10 +150,10 @@ const mapSeverity = (status: string) => {
 
 const mapStatus = (status: string) => {
   const s = String(status ?? "").toUpperCase();
-  if (s === "OPEN") return "Mới";
   if (s === "ACKNOWLEDGED") return "Đang xử lý";
+  if (s === "RESOLVED") return "Đã giải quyết";
   if (s === "DISMISSED") return "Đã bỏ qua";
-  return "Đã giải quyết"; // RESOLVED
+  return "Mới"; // OPEN or unknown — match web default
 };
 
 const mapColor = (status: string) => {

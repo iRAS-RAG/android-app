@@ -431,19 +431,19 @@ export default function OperationsScreen() {
     setBatchAlertsLoading(true);
     setModalMaintenanceVisible(true);
     try {
+      // Fetch all alerts then filter client-side to ACKNOWLEDGED without corrective action
       const res = await alertApi.getAllAlerts(1, 100);
       const all = res.data?.data?.items || res.data?.data || [];
-      const filtered = all
-        .filter(
-          (a: any) =>
-            a.farmingBatchId === selectedBatch?.id &&
-            String(a.status).toUpperCase() === "ACKNOWLEDGED",
-        )
+      const mapped = all
+        .filter((a: any) => String(a.status).toUpperCase() === "ACKNOWLEDGED" && !a.hasCorrectiveAction)
         .map((a: any) => ({
-          label: `Cảnh báo ${a.sensorTypeName || "hệ thống"} — ${a.fishTankName || ""}`,
+          label: `Cảnh báo ${a.sensorTypeName || "hệ thống"} — ${a.fishTankName || "Bể nuôi"}`,
           value: a.id,
+          farmingBatchId: a.farmingBatchId || null,
         }));
-      setBatchAlerts(filtered);
+      // Prioritise alerts belonging to this batch; fall back to all ACKNOWLEDGED
+      const batchSpecific = mapped.filter((a: any) => a.farmingBatchId && a.farmingBatchId === selectedBatch?.id);
+      setBatchAlerts(batchSpecific.length > 0 ? batchSpecific : mapped);
     } catch {
       setBatchAlerts([]);
     } finally {

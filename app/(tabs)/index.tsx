@@ -4,6 +4,7 @@ import { theme } from "@/theme";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState, useEffect } from "react";
+import { useAlertSignalR, type AlertPush } from "@/hooks/useAlertSignalR";
 import {
   Modal,
   SafeAreaView,
@@ -13,7 +14,7 @@ import {
   View,
   ActivityIndicator,
   RefreshControl,
-  Dimensions,
+  useWindowDimensions,
   TextInput,
   StatusBar,
 } from "react-native";
@@ -21,8 +22,6 @@ import { Drawer } from "react-native-drawer-layout";
 import { dashboardService } from "@/services/dashboardService";
 import authService from "@/services/authService";
 import axiosClient from "@/api/axiosClient";
-
-const { width } = Dimensions.get("window");
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
 
@@ -65,6 +64,7 @@ const STATUS_OPTIONS = [
 
 export default function DashboardScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -88,6 +88,23 @@ export default function DashboardScreen() {
   const [farmInfo, setFarmInfo] = useState<any>(null);
   const [userData, setUserData] = useState<any>(null);
   const [stats, setStats] = useState({ totalAlerts: 0, totalTanks: 0 });
+
+  const [liveAlertCount, setLiveAlertCount] = useState(0);
+  const [latestPush, setLatestPush] = useState<AlertPush | null>(null);
+  const [showPushBanner, setShowPushBanner] = useState(false);
+
+  useAlertSignalR({
+    onReceiveAlert: (push) => {
+      setLatestPush(push);
+      setShowPushBanner(true);
+      setLiveAlertCount((prev) => prev + 1);
+      // Auto-hide banner after 6 seconds
+      setTimeout(() => setShowPushBanner(false), 6000);
+    },
+    onAlertCreated: () => {
+      setLiveAlertCount((prev) => prev + 1);
+    },
+  });
 
   const loadDashboardData = async () => {
     try {
@@ -262,6 +279,43 @@ export default function DashboardScreen() {
       <SafeAreaView
         style={{ flex: 1, backgroundColor: theme.colors.background }}
       >
+        {/* Real-time alert push banner */}
+        {showPushBanner && latestPush && (
+          <TouchableOpacity
+            style={{
+              position: "absolute",
+              top: 60,
+              left: 16,
+              right: 16,
+              zIndex: 999,
+              backgroundColor: "#EF4444",
+              borderRadius: 12,
+              padding: 14,
+              flexDirection: "row",
+              alignItems: "center",
+              shadowColor: "#000",
+              shadowOpacity: 0.25,
+              shadowRadius: 8,
+              elevation: 8,
+            }}
+            onPress={() => { setShowPushBanner(false); router.push("/alerts"); }}
+            activeOpacity={0.9}
+          >
+            <Ionicons name="warning" size={20} color="#FFF" style={{ marginRight: 10 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 13 }}>
+                Cảnh báo mới: {latestPush.tankName}
+              </Text>
+              {latestPush.sensorTypeName && (
+                <Text style={{ color: "#FFF", fontSize: 11, opacity: 0.9, marginTop: 2 }}>
+                  {latestPush.sensorTypeName}: {latestPush.triggerValue} (ngưỡng {latestPush.minValue}–{latestPush.maxValue})
+                </Text>
+              )}
+            </View>
+            <Ionicons name="close" size={18} color="#FFF" onPress={() => setShowPushBanner(false)} />
+          </TouchableOpacity>
+        )}
+
         <ScrollView
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -289,14 +343,35 @@ export default function DashboardScreen() {
               </View>
               <TouchableOpacity
                 style={styles.notiBtn}
-                onPress={() => router.push("/alerts")}
+                onPress={() => { setLiveAlertCount(0); router.push("/alerts"); }}
               >
                 <Ionicons
-                  name="notifications-outline"
+                  name={(stats.totalAlerts + liveAlertCount) > 0 ? "notifications" : "notifications-outline"}
                   size={24}
                   color={theme.colors.white}
                 />
-                {stats.totalAlerts > 0 && <View style={styles.notiBadge} />}
+                {(stats.totalAlerts + liveAlertCount) > 0 && (
+                  <View
+                    style={{
+                      position: "absolute",
+                      right: 0,
+                      top: 0,
+                      backgroundColor: "#EF4444",
+                      minWidth: 17,
+                      height: 17,
+                      borderRadius: 9,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      paddingHorizontal: 3,
+                      borderWidth: 1.5,
+                      borderColor: theme.colors.primary,
+                    }}
+                  >
+                    <Text style={{ color: "#FFF", fontSize: 9, fontWeight: "700", lineHeight: 11 }}>
+                      {(stats.totalAlerts + liveAlertCount) > 99 ? "99+" : String(stats.totalAlerts + liveAlertCount)}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
             </View>
           </View>

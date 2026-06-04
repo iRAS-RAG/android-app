@@ -2,7 +2,7 @@ import { styles } from "@/styles/alerts/alerts.styles";
 import { theme } from "@/theme";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -13,7 +13,9 @@ import {
   Modal,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { alertService } from "@/services/alertService";
 import { maintenanceService } from "@/services/maintenanceService";
 import { toast } from "@/utils/toast";
@@ -27,6 +29,7 @@ const STATUS_SORT: Record<string, number> = {
   "Đã bỏ qua": 3,
 };
 
+/** Kept for backward-compat if needed elsewhere */
 const parseViDate = (str: string): Date | null => {
   if (!str || str.length < 8) return null;
   const parts = str.split("/");
@@ -36,6 +39,13 @@ const parseViDate = (str: string): Date | null => {
   const date = new Date(y, m - 1, d);
   return isNaN(date.getTime()) ? null : date;
 };
+
+const formatDateVi = (d: Date): string => {
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}/${mm}/${d.getFullYear()}`;
+};
+
 
 const STATUS_OPTIONS = [
   { label: "Tất cả", value: "" },
@@ -56,16 +66,24 @@ export default function AlertsScreen() {
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
   const [tankFilter, setTankFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [showTankPicker, setShowTankPicker] = useState(false);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
 
+  // Date picker state (replaces text inputs)
+  const [dateFromObj, setDateFromObj] = useState<Date | null>(null);
+  const [dateToObj, setDateToObj] = useState<Date | null>(null);
+  const [showDateFromPicker, setShowDateFromPicker] = useState(false);
+  const [showDateToPicker, setShowDateToPicker] = useState(false);
+
+  // Backward-compat string representations derived from Date objects
+  const dateFrom = dateFromObj ? formatDateVi(dateFromObj) : "";
+  const dateTo = dateToObj ? formatDateVi(dateToObj) : "";
+
   const fetchAlerts = useCallback(async () => {
     try {
-      const data = await alertService.getAlerts();
+      const data = await alertService.getAlerts(1, 100);
       setAlerts(data);
     } catch (error) {
       console.error("Fetch error:", error);
@@ -76,7 +94,7 @@ export default function AlertsScreen() {
     }
   }, []);
 
-  // Reload mỗi khi màn hình được focus (bao gồm khi quay lại từ màn hình nhật ký)
+  // Reload every time the screen gets focus (including returning from log screen)
   useFocusEffect(
     useCallback(() => {
       fetchAlerts();
@@ -89,10 +107,10 @@ export default function AlertsScreen() {
     [alerts]
   );
 
-  // Filtered + sorted alerts
+  // Filtered + sorted alerts (client-side: search, tank, date; status already filtered server-side)
   const sortedFilteredAlerts = useMemo(() => {
-    const fromDate = parseViDate(dateFrom);
-    const toDate = parseViDate(dateTo);
+    const fromDate = dateFromObj;
+    const toDate = dateToObj ? new Date(dateToObj) : null;
     if (toDate) toDate.setHours(23, 59, 59, 999);
 
     const filtered = alerts.filter((item) => {
@@ -123,7 +141,7 @@ export default function AlertsScreen() {
       const db = b.rawDate ? new Date(b.rawDate).getTime() : 0;
       return db - da;
     });
-  }, [alerts, searchQuery, dateFrom, dateTo, tankFilter, statusFilter]);
+  }, [alerts, searchQuery, dateFromObj, dateToObj, tankFilter, statusFilter]);
 
   const handleConfirm = async (id: string) => {
     setAlerts((prev) =>
@@ -133,7 +151,7 @@ export default function AlertsScreen() {
       await alertService.updateStatus(id, "processing");
       toast.info("Đã xác nhận sự cố. Đang chuyển sang trạng thái theo dõi.");
     } catch {
-      fetchAlerts();
+      fetchAlerts(statusFilter);
     }
   };
 
@@ -170,7 +188,7 @@ export default function AlertsScreen() {
   const tankFilterLabel = tankFilter || "Tất cả bể";
   const statusFilterLabel =
     STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label || "Tất cả";
-  const hasDateFilter = dateFrom || dateTo;
+  const hasDateFilter = dateFromObj || dateToObj;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
@@ -197,39 +215,106 @@ export default function AlertsScreen() {
           )}
         </View>
 
-        {/* Date range filter */}
+        {/* Date range filter – touchable buttons opening DateTimePicker */}
         <View style={styles.dateRangeRow}>
-          <View style={styles.dateInputBox}>
-            <Ionicons name="calendar-outline" size={14} color={theme.colors.textSecondary} style={{ marginRight: 6 }} />
-            <TextInput
-              style={styles.dateInput}
-              placeholder="Từ ngày (DD/MM/YYYY)"
-              placeholderTextColor={theme.colors.textSecondary}
-              value={dateFrom}
-              onChangeText={setDateFrom}
-              keyboardType="numeric"
-              maxLength={10}
+          {/* From date */}
+          <TouchableOpacity
+            style={styles.dateInputBox}
+            onPress={() => setShowDateFromPicker(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={14}
+              color={theme.colors.textSecondary}
+              style={{ marginRight: 6 }}
             />
-          </View>
+            <Text
+              style={[
+                styles.dateInput,
+                { color: dateFromObj ? "#1E293B" : theme.colors.textSecondary },
+              ]}
+              numberOfLines={1}
+            >
+              {dateFromObj ? formatDateVi(dateFromObj) : "Từ ngày"}
+            </Text>
+            {dateFromObj && (
+              <TouchableOpacity
+                onPress={() => setDateFromObj(null)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close-circle" size={14} color={theme.colors.danger} />
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+
           <Text style={{ color: theme.colors.textSecondary, fontSize: 12, marginHorizontal: 4 }}>—</Text>
-          <View style={styles.dateInputBox}>
-            <Ionicons name="calendar-outline" size={14} color={theme.colors.textSecondary} style={{ marginRight: 6 }} />
-            <TextInput
-              style={styles.dateInput}
-              placeholder="Đến ngày (DD/MM/YYYY)"
-              placeholderTextColor={theme.colors.textSecondary}
-              value={dateTo}
-              onChangeText={setDateTo}
-              keyboardType="numeric"
-              maxLength={10}
+
+          {/* To date */}
+          <TouchableOpacity
+            style={styles.dateInputBox}
+            onPress={() => setShowDateToPicker(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={14}
+              color={theme.colors.textSecondary}
+              style={{ marginRight: 6 }}
             />
-          </View>
+            <Text
+              style={[
+                styles.dateInput,
+                { color: dateToObj ? "#1E293B" : theme.colors.textSecondary },
+              ]}
+              numberOfLines={1}
+            >
+              {dateToObj ? formatDateVi(dateToObj) : "Đến ngày"}
+            </Text>
+            {dateToObj && (
+              <TouchableOpacity
+                onPress={() => setDateToObj(null)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close-circle" size={14} color={theme.colors.danger} />
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+
+          {/* Clear both dates */}
           {hasDateFilter && (
-            <TouchableOpacity onPress={() => { setDateFrom(""); setDateTo(""); }} style={{ marginLeft: 6 }}>
+            <TouchableOpacity
+              onPress={() => { setDateFromObj(null); setDateToObj(null); }}
+              style={{ marginLeft: 6 }}
+            >
               <Ionicons name="close-circle" size={18} color={theme.colors.danger} />
             </TouchableOpacity>
           )}
         </View>
+
+        {/* DateTimePicker — Android shows native dialog, iOS uses Modal+spinner */}
+        {Platform.OS !== "ios" && showDateFromPicker && (
+          <DateTimePicker
+            value={dateFromObj ?? new Date()}
+            mode="date"
+            display="default"
+            onChange={(_event, selected) => {
+              setShowDateFromPicker(false);
+              if (selected) setDateFromObj(selected);
+            }}
+          />
+        )}
+        {Platform.OS !== "ios" && showDateToPicker && (
+          <DateTimePicker
+            value={dateToObj ?? new Date()}
+            mode="date"
+            display="default"
+            onChange={(_event, selected) => {
+              setShowDateToPicker(false);
+              if (selected) setDateToObj(selected);
+            }}
+          />
+        )}
 
         {/* Tank + Status filters */}
         <View style={styles.filterRow}>
@@ -246,6 +331,43 @@ export default function AlertsScreen() {
         </View>
       </View>
 
+      {/* iOS date picker Modal */}
+      {Platform.OS === "ios" && (showDateFromPicker || showDateToPicker) && (
+        <Modal transparent animationType="slide">
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "flex-end" }}
+            activeOpacity={1}
+            onPress={() => { setShowDateFromPicker(false); setShowDateToPicker(false); }}
+          >
+            <View style={{ backgroundColor: "#FFF", borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: 32 }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+                <TouchableOpacity onPress={() => { setShowDateFromPicker(false); setShowDateToPicker(false); }}>
+                  <Text style={{ fontSize: 15, color: "#64748B" }}>Hủy</Text>
+                </TouchableOpacity>
+                <Text style={{ fontSize: 15, fontWeight: "700", color: "#1E293B" }}>
+                  {showDateFromPicker ? "Từ ngày" : "Đến ngày"}
+                </Text>
+                <TouchableOpacity onPress={() => { setShowDateFromPicker(false); setShowDateToPicker(false); }}>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: theme.colors.primary }}>Xong</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={showDateFromPicker ? (dateFromObj ?? new Date()) : (dateToObj ?? new Date())}
+                mode="date"
+                display="spinner"
+                style={{ width: "100%" }}
+                onChange={(_event, selected) => {
+                  if (selected) {
+                    if (showDateFromPicker) setDateFromObj(selected);
+                    else setDateToObj(selected);
+                  }
+                }}
+              />
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
       {/* ── LIST ── */}
       {loading ? (
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -257,7 +379,11 @@ export default function AlertsScreen() {
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchAlerts(); }} colors={[theme.colors.primary]} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => { setRefreshing(true); fetchAlerts(statusFilter); }}
+              colors={[theme.colors.primary]}
+            />
           }
         >
           {sortedFilteredAlerts.length > 0 ? (

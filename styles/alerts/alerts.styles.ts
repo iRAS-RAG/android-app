@@ -1,10 +1,10 @@
 import { theme } from "@/theme";
-import { StyleSheet } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: Platform.OS === "ios" ? 12 : 16,
     paddingBottom: 12,
     backgroundColor: "#FFF",
     borderBottomWidth: 1,

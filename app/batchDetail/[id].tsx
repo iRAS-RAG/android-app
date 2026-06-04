@@ -8,8 +8,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
-  Dimensions,
   FlatList,
+  useWindowDimensions,
 } from "react-native";
 import {
   Ionicons,
@@ -21,9 +21,7 @@ import { batchService } from "@/services/batchService";
 import { toast } from "@/utils/toast";
 import { theme as appTheme } from "@/theme";
 
-const { width } = Dimensions.get("window");
-// Full-width card: scrollContent padding = 16px mỗi bên → card = width - 32
-const STAGE_CARD_WIDTH = width - 32;
+// STAGE_CARD_WIDTH is computed dynamically inside component via useWindowDimensions
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -72,6 +70,7 @@ const StatWidget = ({
   valueColor,
   subtext,
 }: any) => {
+  const { width: sw } = useWindowDimensions();
   const Icon =
     iconLib === "FontAwesome5"
       ? FontAwesome5
@@ -79,7 +78,7 @@ const StatWidget = ({
         ? MaterialCommunityIcons
         : Ionicons;
   return (
-    <View style={styles.widget}>
+    <View style={[styles.widget, { width: (sw - 44) / 2 }]}>
       <View style={styles.widgetHeader}>
         <Text style={styles.widgetLabel} numberOfLines={2}>
           {label}
@@ -262,6 +261,8 @@ const StageCard = ({
 export default function BatchDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { width } = useWindowDimensions();
+  const STAGE_CARD_WIDTH = width - 32;
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -673,7 +674,7 @@ const styles = StyleSheet.create({
   },
   widget: {
     backgroundColor: "#FFF",
-    width: (width - 44) / 2,
+    // width set inline via useWindowDimensions
     borderRadius: 14,
     padding: 14,
     minHeight: 100,

@@ -436,8 +436,7 @@ export default function TankDetailScreen() {
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>Giám sát thông số</Text>
           <Text style={styles.headerSubTitle}>
-            {tankData?.tankInfo?.name ?? "Bể nuôi"} •{" "}
-            {tankData?.tankInfo?.farmName ?? "Hệ thống iRAS"}
+            {tankData?.tankInfo?.name ?? "Bể nuôi"}
           </Text>
         </View>
       </View>
