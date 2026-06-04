@@ -163,4 +163,5 @@ export const tankDetailService = {
       throw error;
     }
   },
+
 };

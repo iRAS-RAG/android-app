@@ -527,15 +527,19 @@ export default function TankDetailScreen() {
                             {item.unit}
                           </Text>
                         </View>
-                        {isWarning && (
-                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 4 }}>
-                            <Ionicons name="warning-outline" size={13} color="#EF4444" />
-                            <Text style={{ fontSize: 11, color: "#EF4444", fontWeight: "600" }}>Vượt ngưỡng an toàn</Text>
-                          </View>
-                        )}
-                        <Text style={{ fontSize: 11, color: theme.colors.textSecondary, marginTop: 4 }}>
-                          {item.time}
-                        </Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 4 }}>
+                          {isWarning ? (
+                            <>
+                              <Ionicons name="warning-outline" size={13} color="#EF4444" />
+                              <Text style={{ fontSize: 11, color: "#EF4444", fontWeight: "600" }}>Vượt ngưỡng an toàn</Text>
+                            </>
+                          ) : (
+                            <>
+                              <Ionicons name="checkmark-circle-outline" size={13} color="#10B981" />
+                              <Text style={{ fontSize: 11, color: "#10B981", fontWeight: "600" }}>An toàn</Text>
+                            </>
+                          )}
+                        </View>
                       </TouchableOpacity>
                     );
                   }}
@@ -753,7 +757,7 @@ export default function TankDetailScreen() {
                 {/* Ngưỡng an toàn */}
                 <View style={localStyles.statBox}>
                   <Text style={localStyles.statLabel}>NGƯỠNG AN TOÀN</Text>
-                  <Text style={[localStyles.statValue, { color: "#10B981", fontSize: 16 }]}>
+                  <Text style={[localStyles.statValue, { color: "#10B981" }]}>
                     {activeSensor ? `${minThreshold}–${maxThreshold}` : "—"}
                   </Text>
                   {sensorUnit ? (
@@ -777,7 +781,7 @@ export default function TankDetailScreen() {
                 {/* Cao nhất hôm nay */}
                 <View style={localStyles.statBox}>
                   <Text style={localStyles.statLabel}>CAO NHẤT</Text>
-                  <Text style={[localStyles.statValue, { color: "#F59E0B" }]}>
+                  <Text style={[localStyles.statValue, { color: "#EF4444" }]}>
                     {latestMax != null ? latestMax.toFixed(2) : "—"}
                   </Text>
                   {sensorUnit && latestMax != null ? (
