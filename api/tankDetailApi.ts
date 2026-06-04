@@ -50,4 +50,9 @@ export const tankDetailApi = {
       params: { SpeciesId: speciesId },
     });
   },
+
+  // Lấy batch đang active của bể (kèm safeThresholds theo species)
+  getActiveBatch: (fishTankId: string) => {
+    return axiosClient.get(`/batches/active`, { params: { fishTankId } });
+  },
 };

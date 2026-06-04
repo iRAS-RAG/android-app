@@ -32,19 +32,19 @@ const SENSOR_CARD_W = screenWidth - 40 - 76; // section pad(40) + 2 arrows(76)
 // Y data area height = CHART_H * 0.75 (verticalLabelsHeightPercentage)
 const CHART_H = 230;
 const CHART_Y_AXIS_W = 64;   // chart-kit's paddingRight = Y-axis left margin
+const CHART_LEFT_PAD = 16;   // extra left space so first dot/label isn't clipped
 const CHART_LABEL_X = CHART_Y_AXIS_W - 12; // label x (paddingRight - yLabelsOffset)
 const CHART_TOP_PAD = 16;    // chart-kit's paddingTop default
-const CHART_INNER_H = Math.round(CHART_H * 0.75); // 172 — data area height
+const CHART_INNER_H = CHART_H * 0.75; // 172.5 — matches chart-kit's (height*3/4) exactly
 const CHART_BOT_PAD = CHART_H - CHART_TOP_PAD - CHART_INNER_H; // 42
 const POINTS_PER_SCREEN = 7;
 const POINT_SLOT_W = (screenWidth - 40) / POINTS_PER_SCREEN;
 
 // ─── Filter config ────────────────────────────────────────────────────────────
-type ChartFilter = "10s" | "1m" | "1h" | "1d" | "1w";
+type ChartFilter = "1m" | "1h" | "1d" | "1w";
 
 const FILTER_OPTIONS: { value: ChartFilter; label: string; seconds: number }[] =
   [
-    { value: "10s", label: "10s",    seconds: 10 },
     { value: "1m",  label: "1 phút", seconds: 60 },
     { value: "1h",  label: "1 giờ",  seconds: 3600 },
     { value: "1d",  label: "1 ngày", seconds: 86400 },
@@ -60,13 +60,6 @@ const FILTER_CONFIG: Record<
     labelFmt: (d: Date) => string;
   }
 > = {
-  "10s": {
-    lookbackMs: 0,
-    intervalMin: 0,
-    pollMs: 10_000,
-    labelFmt: (d) =>
-      `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`,
-  },
   "1m": {
     lookbackMs: 2 * 3600 * 1000,
     intervalMin: 1,
@@ -78,7 +71,8 @@ const FILTER_CONFIG: Record<
     lookbackMs: 48 * 3600 * 1000,
     intervalMin: 60,
     pollMs: 3600_000,
-    labelFmt: (d) => `${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}h`,
+    // Hour first, date second — separated by newline (handled via rotated labels)
+    labelFmt: (d) => `${d.getHours()}h\n${d.getDate()}/${d.getMonth() + 1}`,
   },
   "1d": {
     lookbackMs: 24 * 3600 * 1000,
@@ -99,7 +93,7 @@ const FILTER_CONFIG: Record<
 const makeChartConfig = (lineColor: string) => ({
   backgroundGradientFrom: "#FFF",
   backgroundGradientTo: "#FFF",
-  decimalPlaces: 1,
+  decimalPlaces: 2,
   color: (opacity = 1) => {
     const hex = parseInt(lineColor.replace("#", ""), 16);
     const r = (hex >> 16) & 0xff;
@@ -153,14 +147,14 @@ export default function TankDetailScreen() {
 
   // Chart
   const [selectedSensorId, setSelectedSensorId] = useState<string | null>(null);
-  const [chartFilter, setChartFilter] = useState<ChartFilter>("10s");
+  const [chartFilter, setChartFilter] = useState<ChartFilter>("1m");
   const [chartData, setChartData] = useState<any>(null);
   const [chartLoading, setChartLoading] = useState(false);
   const chartScrollRef = useRef<ScrollView>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Countdown
-  const [countdown, setCountdown] = useState(10);
+  const [countdown, setCountdown] = useState(60);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Filter picker modal
@@ -177,62 +171,28 @@ export default function TankDetailScreen() {
       if (!silent) setChartLoading(true);
       const cfg = FILTER_CONFIG[filter];
       try {
-        let labels: string[] = [];
-        let values: number[] = [];
-
-        if (cfg.lookbackMs === 0) {
-          // 10s live mode: start empty like website (websocket accumulation).
-          // Non-silent (initial load / filter switch) → stay empty, wait for polls.
-          // Silent (each 10s poll) → fetch latest 1 log, append if new timestamp.
-          if (!silent) return; // chart stays null → placeholder shown
-
-          const res = await tankDetailApi.getSensorLogs(sensorId, 1, 1);
-          const raw = res.data?.data?.items ?? res.data?.data ?? [];
-          const valid = (Array.isArray(raw) ? raw : [])
-            .filter((l: any) => {
-              const v = l.average ?? l.averageValue ?? l.value ?? l.data;
-              return v != null && !isNaN(Number(v));
-            });
-          if (valid.length === 0) return;
-
-          const l = valid[0];
-          const ts = new Date(l.createdAt ?? l.periodStart ?? l.recordedAt ?? "").getTime();
-          const label = isNaN(ts) ? "--" : cfg.labelFmt(new Date(ts));
-          const value = Number(l.average ?? l.averageValue ?? l.value ?? l.data);
-
-          setChartData((prev) => {
-            if (!prev) return { labels: [label], datasets: [{ data: [value] }] };
-            const lastLabel = prev.labels[prev.labels.length - 1];
-            if (lastLabel === label) return prev; // same timestamp, skip
-            const newLabels = [...prev.labels, label].slice(-20);
-            const newVals = [...prev.datasets[0].data, value].slice(-20);
-            return { labels: newLabels, datasets: [{ data: newVals }] };
-          });
-          return; // skip generic setChartData below
-        } else {
-          const now = new Date();
-          const from = new Date(now.getTime() - cfg.lookbackMs);
-          const res = await tankDetailApi.getSensorHistory(
-            sensorId,
-            from.toISOString(),
-            now.toISOString(),
-            cfg.intervalMin,
-          );
-          const raw = res.data?.data?.items ?? res.data?.data ?? [];
-          const items = Array.isArray(raw) ? raw : [];
-          const valid = items.filter((i: any) => {
-            const v = i.average ?? i.averageValue ?? i.value ?? i.avg ?? i.data;
-            return v != null && !isNaN(Number(v));
-          });
-          labels = valid.map((i: any) => {
-            const ts = i.recordedAt ?? i.time ?? i.timestamp ?? i.periodStart ?? i.createdAt ?? "";
-            const d = new Date(ts);
-            return isNaN(d.getTime()) ? "--" : cfg.labelFmt(d);
-          });
-          values = valid.map((i: any) =>
-            Number(i.average ?? i.averageValue ?? i.value ?? i.avg ?? i.data),
-          );
-        }
+        const now = new Date();
+        const from = new Date(now.getTime() - cfg.lookbackMs);
+        const res = await tankDetailApi.getSensorHistory(
+          sensorId,
+          from.toISOString(),
+          now.toISOString(),
+          cfg.intervalMin,
+        );
+        const raw = res.data?.data?.items ?? res.data?.data ?? [];
+        const items = Array.isArray(raw) ? raw : [];
+        const valid = items.filter((i: any) => {
+          const v = i.average ?? i.averageValue ?? i.value ?? i.avg ?? i.data;
+          return v != null && !isNaN(Number(v));
+        });
+        const labels = valid.map((i: any) => {
+          const ts = i.recordedAt ?? i.time ?? i.timestamp ?? i.periodStart ?? i.createdAt ?? "";
+          const d = new Date(ts);
+          return isNaN(d.getTime()) ? "--" : cfg.labelFmt(d);
+        });
+        const values = valid.map((i: any) =>
+          Number(i.average ?? i.averageValue ?? i.value ?? i.avg ?? i.data),
+        );
 
         if (values.length > 0) {
           setChartData({ labels, datasets: [{ data: values }] });
@@ -250,6 +210,15 @@ export default function TankDetailScreen() {
 
   // ─── Effect: sensor/filter change → reload chart + setup polling ──────────
 
+  // Refresh latest sensor values (min/max/current) without touching chart or devices
+  const refreshMetrics = useCallback(async () => {
+    if (!id) return;
+    try {
+      const data = await tankDetailService.getTankFullDetails(id as string);
+      setTankData((prev: any) => prev ? { ...prev, metrics: data.metrics } : prev);
+    } catch {}
+  }, [id]);
+
   useEffect(() => {
     if (!selectedSensorId) return;
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
@@ -262,12 +231,13 @@ export default function TankDetailScreen() {
     if (pollMs > 0) {
       pollRef.current = setInterval(() => {
         loadChartData(selectedSensorId, chartFilter, true);
+        refreshMetrics();
       }, pollMs);
     }
     return () => {
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     };
-  }, [selectedSensorId, chartFilter, loadChartData]);
+  }, [selectedSensorId, chartFilter, loadChartData, refreshMetrics]);
 
   // ─── Effect: countdown timer ───────────────────────────────────────────────
 
@@ -374,25 +344,46 @@ export default function TankDetailScreen() {
   const minThreshold: number = (activeSensor?.minThreshold ?? null) ?? defaultThr.min;
   const maxThreshold: number = (activeSensor?.maxThreshold ?? null) ?? defaultThr.max;
 
-  // Y domain must include both data values AND threshold values so chart-kit
-  // scales correctly and threshold lines/labels stay within visible range.
+  // Sensor-type absolute domain (hardcoded; will be replaced by API values later)
+  const sensorTypeDomain: { min: number; max: number } | null = (() => {
+    if (!activeSensor) return null;
+    const lower = activeSensor.label?.toLowerCase() || "";
+    if (lower.includes("nhiệt độ") || lower.includes("temp")) return { min: 0, max: 50 };
+    if (lower.includes("ph")) return { min: 0, max: 14 };
+    if (lower.includes("tds")) return { min: 0, max: 1000 };
+    if (lower.includes("oxy") || lower.includes("do")) return { min: 0, max: 20 };
+    if (lower.includes("ammonia") || lower.includes("nh3")) return { min: 0, max: 10 };
+    if (lower.includes("lưu lượng")) return { min: 0, max: 200 };
+    if (lower.includes("mực nước")) return { min: 0, max: 500 };
+    return null;
+  })();
+
+  // Y domain: data + thresholds + 8% padding, clamped to sensor-type absolute range.
+  // This ensures thresholds are never pinned exactly at domain min/max.
   const dataValues: number[] = chartData?.datasets?.[0]?.data ?? [];
   const allYValues = dataValues.length > 0
     ? [...dataValues, minThreshold, maxThreshold]
     : [];
-  const yDataMin = allYValues.length > 0 ? Math.min(...allYValues) : 0;
-  const yDataMax = allYValues.length > 0 ? Math.max(...allYValues) : 100;
+  const rawMin = allYValues.length > 0 ? Math.min(...allYValues) : 0;
+  const rawMax = allYValues.length > 0 ? Math.max(...allYValues) : 100;
+  const rawRange = Math.max(rawMax - rawMin, 1);
+  const pad = Math.ceil(rawRange * 0.08);
+  const absMin = sensorTypeDomain ? sensorTypeDomain.min : rawMin - pad;
+  const absMax = sensorTypeDomain ? sensorTypeDomain.max : rawMax + pad;
+  const yDataMin = Math.max(absMin, Math.floor(rawMin - pad));
+  const yDataMax = Math.min(absMax, Math.ceil(rawMax + pad));
   const yRange = Math.max(yDataMax - yDataMin, 0.001);
 
-  // Phantom dataset forces chart-kit to use the same expanded Y scale.
-  // withDots:false prevents phantom dots; color:'transparent' hides the line.
+  // Phantom dataset anchors chart-kit's Y scale to [yDataMin, yDataMax] so that
+  // chart-kit's internal formula  y = paddingTop + (1-(v-min)/(max-min)) * (h*0.75)
+  // matches our valueToY exactly — dot positions align with our custom SVG labels.
   const chartDataForRender = chartData && dataValues.length > 0
     ? {
         ...chartData,
         datasets: [
           ...chartData.datasets,
           {
-            data: [minThreshold, maxThreshold],
+            data: [yDataMin, yDataMax],
             color: () => "transparent" as string,
             withDots: false,
           },
@@ -418,6 +409,9 @@ export default function TankDetailScreen() {
   const safeYTop = Math.max(chartYTop, Math.min(maxLineY, minLineY));
   const safeYBot = Math.min(chartYBot, Math.max(maxLineY, minLineY));
   const showSafeZone = dataValues.length > 0 && safeYBot > safeYTop;
+
+  // Data area width (chart minus fixed Y-axis panel)
+  const dataAreaWidth = chartWidth - CHART_Y_AXIS_W;
 
   const filterLabel =
     FILTER_OPTIONS.find((f) => f.value === chartFilter)?.label ?? "10s";
@@ -611,123 +605,146 @@ export default function TankDetailScreen() {
             </View>
           ) : chartData ? (
             <>
-              {/* Unit label above Y axis */}
-              {sensorUnit ? (
-                <Text style={{ fontSize: 11, fontWeight: "600", color: "#9CA3AF", marginBottom: 2, marginLeft: 4 }}>
-                  {sensorUnit}
-                </Text>
-              ) : null}
-
-              {chartScrollable && (
-                <Text style={{ fontSize: 11, color: "#94A3B8", fontStyle: "italic", marginBottom: 4 }}>
-                  ← Kéo để xem dữ liệu cũ hơn
-                </Text>
-              )}
-
-              {/* Chart + SVG overlay */}
-              <ScrollView ref={chartScrollRef} horizontal showsHorizontalScrollIndicator={false} scrollEnabled={chartScrollable}>
-                <View style={{ position: "relative", width: chartWidth, height: CHART_H }}>
-                  <LineChart
-                    data={chartDataForRender!}
-                    width={chartWidth}
-                    height={CHART_H}
-                    chartConfig={makeChartConfig(chartColor)}
-                    bezier={numPts > 2}
-                    style={{ borderRadius: 12, marginTop: 0, paddingRight: CHART_Y_AXIS_W }}
-                    withScrollableDot={false}
-                    withShadow={false}
-                    withHorizontalLabels={false}
-                    getDotColor={(value) =>
-                      (value < minThreshold || value > maxThreshold) ? "#EF4444" : theme.colors.primary
-                    }
-                  />
-
-                  {/* SVG overlay: vùng an toàn + đường ngưỡng */}
-                  <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                    <Svg width={chartWidth} height={CHART_H}>
-                      {/* Safe zone shading — clamped to chart boundaries */}
-                      {showSafeZone && (
-                        <Rect
-                          x={CHART_Y_AXIS_W}
-                          y={safeYTop}
-                          width={chartWidth - CHART_Y_AXIS_W - 8}
-                          height={safeYBot - safeYTop}
-                          fill="#10B981"
-                          fillOpacity={0.1}
-                        />
-                      )}
-
-                      {/* Threshold dashed lines */}
-                      {showMinLine && (
-                        <SvgLine
-                          x1={CHART_Y_AXIS_W}
-                          y1={minLineY}
-                          x2={chartWidth - 8}
-                          y2={minLineY}
-                          stroke="#10B981"
-                          strokeWidth={1.5}
-                          strokeDasharray="5 3"
-                          opacity={0.9}
-                        />
-                      )}
-                      {showMaxLine && (
-                        <SvgLine
-                          x1={CHART_Y_AXIS_W}
-                          y1={maxLineY}
-                          x2={chartWidth - 8}
-                          y2={maxLineY}
-                          stroke="#10B981"
-                          strokeWidth={1.5}
-                          strokeDasharray="5 3"
-                          opacity={0.9}
-                        />
-                      )}
-
-                      {/* Custom Y-axis labels — same font as chart-kit, thresholds in green */}
-                      {dataValues.length > 0 && (() => {
-                        // Compute 5 evenly spaced ticks (matches chart-kit's count=4)
-                        const regularTicks = [0, 1, 2, 3, 4].map(
-                          (i) => Number((yDataMin + (yDataMax - yDataMin) * i / 4).toFixed(1))
-                        );
-                        const thrSet = new Set([
-                          Number(minThreshold.toFixed(1)),
-                          Number(maxThreshold.toFixed(1)),
-                        ]);
-                        // Merge and deduplicate: if a regular tick is within 0.05 of a threshold, mark it as threshold
-                        const seen = new Set<string>();
-                        const allTicks: { value: number; isThreshold: boolean }[] = [];
-                        [...regularTicks, ...thrSet].forEach((v) => {
-                          const key = v.toFixed(1);
-                          if (seen.has(key)) return;
-                          seen.add(key);
-                          // Check if this tick is close to a threshold
-                          const isThr = [...thrSet].some((t) => Math.abs(v - t) < 0.05);
-                          allTicks.push({ value: v, isThreshold: isThr });
-                        });
-                        allTicks.sort((a, b) => a.value - b.value);
-
-                        return allTicks.map(({ value, isThreshold }, i) => {
-                          const y = valueToY(value);
-                          if (y < chartYTop - 4 || y > chartYBot + 8) return null;
-                          return (
-                            <SvgText
-                              key={i}
-                              x={CHART_LABEL_X}
-                              y={y + 4}
-                              fontSize={12}
-                              fontWeight={isThreshold ? "700" : "400"}
-                              fill={isThreshold ? "#10B981" : "#64748B"}
-                              textAnchor="end"
-                            >
-                              {value.toFixed(1)}
-                            </SvgText>
-                          );
-                        });
-                      })()}
-                    </Svg>
-                  </View>
+              {/* Unit label + scroll hint on the same row */}
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
+                <View style={{ width: CHART_Y_AXIS_W }}>
+                  {sensorUnit ? (
+                    <Text style={{ fontSize: 10, fontWeight: "600", color: "#9CA3AF" }}>
+                      {sensorUnit}
+                    </Text>
+                  ) : null}
                 </View>
-              </ScrollView>
+                {chartScrollable ? (
+                  <Text style={{ fontSize: 11, color: "#94A3B8", fontStyle: "italic" }}>
+                    ← Kéo để xem dữ liệu cũ hơn
+                  </Text>
+                ) : null}
+              </View>
+
+              {/* Fixed Y-axis + scrollable data area */}
+              <View style={{ flexDirection: "row", height: CHART_H }}>
+                {/* Fixed Y-axis panel — stays in place during horizontal scroll */}
+                <View style={{ width: CHART_Y_AXIS_W, height: CHART_H, backgroundColor: "#FFF", zIndex: 2 }}>
+                  <Svg width={CHART_Y_AXIS_W} height={CHART_H}>
+                    {dataValues.length > 0 && (() => {
+                      const regularTicks = [0, 1, 2, 3, 4].map(
+                        (i) => Number((yDataMin + (yDataMax - yDataMin) * i / 4).toFixed(1))
+                      );
+                      const thrValues = [
+                        Number(minThreshold.toFixed(1)),
+                        Number(maxThreshold.toFixed(1)),
+                      ];
+                      const thrSet = new Set(thrValues);
+                      const minValGap = yRange * 0.10;
+                      const filteredRegular = regularTicks.filter(
+                        (t) => thrValues.every((thr) => Math.abs(t - thr) >= minValGap)
+                      );
+                      const seen = new Set<string>();
+                      const allTicks: { value: number; isThreshold: boolean }[] = [];
+                      [...filteredRegular, ...thrValues].forEach((v) => {
+                        const key = v.toFixed(1);
+                        if (seen.has(key)) return;
+                        seen.add(key);
+                        allTicks.push({ value: v, isThreshold: thrSet.has(Number(v.toFixed(1))) });
+                      });
+                      allTicks.sort((a, b) => a.value - b.value);
+                      return allTicks.map(({ value, isThreshold }, i) => {
+                        const y = valueToY(value);
+                        if (y < chartYTop - 4 || y > chartYBot + 8) return null;
+                        return (
+                          <SvgText
+                            key={i}
+                            x={CHART_LABEL_X}
+                            y={y + 4}
+                            fontSize={12}
+                            fontWeight={isThreshold ? "700" : "400"}
+                            fill={isThreshold ? "#10B981" : "#64748B"}
+                            textAnchor="end"
+                          >
+                            {value.toFixed(1)}
+                          </SvgText>
+                        );
+                      });
+                    })()}
+                  </Svg>
+                </View>
+
+                {/* Scrollable data area — only the chart data region scrolls */}
+                <ScrollView
+                  ref={chartScrollRef}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  scrollEnabled={chartScrollable}
+                  style={{ flex: 1 }}
+                >
+                  {/*
+                    Container is CHART_LEFT_PAD wider than the pure data area so the
+                    first dot and its time label are not clipped at the left edge.
+                    The chart is shifted left by (CHART_Y_AXIS_W - CHART_LEFT_PAD) so
+                    that the Y-axis column is hidden but CHART_LEFT_PAD px of breathing
+                    room remains for the first data point.
+                  */}
+                  <View style={{ width: dataAreaWidth + CHART_LEFT_PAD, height: CHART_H, overflow: "hidden" }}>
+                    <View style={{ marginLeft: -(CHART_Y_AXIS_W - CHART_LEFT_PAD) }}>
+                      <LineChart
+                        data={chartDataForRender!}
+                        width={chartWidth}
+                        height={CHART_H}
+                        chartConfig={makeChartConfig(chartColor)}
+                        bezier={numPts > 2}
+                        style={{ borderRadius: 12, marginTop: 0, paddingRight: CHART_Y_AXIS_W }}
+                        withScrollableDot={false}
+                        withShadow={false}
+                        withHorizontalLabels={false}
+                        horizontalLabelRotation={chartFilter === "1h" ? -40 : 0}
+                        getDotColor={(value) =>
+                          (value < minThreshold || value > maxThreshold) ? "#EF4444" : theme.colors.primary
+                        }
+                      />
+                    </View>
+
+                    {/* Data-only SVG overlay: safe zone + threshold lines (no Y labels) */}
+                    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                      <Svg width={dataAreaWidth + CHART_LEFT_PAD} height={CHART_H}>
+                        {showSafeZone && (
+                          <Rect
+                            x={0}
+                            y={safeYTop}
+                            width={dataAreaWidth + CHART_LEFT_PAD}
+                            height={safeYBot - safeYTop}
+                            fill="#10B981"
+                            fillOpacity={0.1}
+                          />
+                        )}
+                        {showMinLine && (
+                          <SvgLine
+                            x1={0}
+                            y1={minLineY}
+                            x2={dataAreaWidth + CHART_LEFT_PAD}
+                            y2={minLineY}
+                            stroke="#10B981"
+                            strokeWidth={1.5}
+                            strokeDasharray="5 3"
+                            opacity={0.9}
+                          />
+                        )}
+                        {showMaxLine && (
+                          <SvgLine
+                            x1={0}
+                            y1={maxLineY}
+                            x2={dataAreaWidth + CHART_LEFT_PAD}
+                            y2={maxLineY}
+                            stroke="#10B981"
+                            strokeWidth={1.5}
+                            strokeDasharray="5 3"
+                            opacity={0.9}
+                          />
+                        )}
+                      </Svg>
+                    </View>
+                  </View>
+                </ScrollView>
+              </View>
 
               {/* Divider */}
               <View style={{ height: 1, backgroundColor: "#F1F5F9", marginVertical: 14 }} />
@@ -750,7 +767,7 @@ export default function TankDetailScreen() {
                 <View style={[localStyles.statBox, { borderLeftWidth: 1, borderRightWidth: 1, borderColor: "#F1F5F9" }]}>
                   <Text style={localStyles.statLabel}>THẤP NHẤT</Text>
                   <Text style={[localStyles.statValue, { color: "#3B82F6" }]}>
-                    {latestMin != null ? latestMin.toFixed(1) : "—"}
+                    {latestMin != null ? latestMin.toFixed(2) : "—"}
                   </Text>
                   {sensorUnit && latestMin != null ? (
                     <Text style={localStyles.statUnit}>{sensorUnit}</Text>
@@ -762,7 +779,7 @@ export default function TankDetailScreen() {
                 <View style={localStyles.statBox}>
                   <Text style={localStyles.statLabel}>CAO NHẤT</Text>
                   <Text style={[localStyles.statValue, { color: "#F59E0B" }]}>
-                    {latestMax != null ? latestMax.toFixed(1) : "—"}
+                    {latestMax != null ? latestMax.toFixed(2) : "—"}
                   </Text>
                   {sensorUnit && latestMax != null ? (
                     <Text style={localStyles.statUnit}>{sensorUnit}</Text>
@@ -840,8 +857,7 @@ export default function TankDetailScreen() {
                     {opt.label}
                   </Text>
                   <Text style={{ fontSize: 11, color: "#94A3B8", marginTop: 1 }}>
-                    {opt.value === "10s" ? "Dữ liệu trực tiếp, cập nhật mỗi 10 giây" :
-                     opt.value === "1m"  ? "Dữ liệu 2 giờ gần nhất, interval 1 phút" :
+                    {opt.value === "1m"  ? "Dữ liệu 2 giờ gần nhất, interval 1 phút" :
                      opt.value === "1h"  ? "Dữ liệu 48 giờ gần nhất, interval 1 giờ" :
                      opt.value === "1d"  ? "Dữ liệu 24 giờ gần nhất, interval 2 giờ" :
                                            "Dữ liệu 7 ngày gần nhất, interval 1 ngày"}

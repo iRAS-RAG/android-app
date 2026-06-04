@@ -59,6 +59,20 @@ export const tankDetailService = {
 
       const firstSensorId = latestMetrics[0]?.sensorId;
 
+      // Fetch species-configured safe thresholds from active batch (same source as web)
+      const speciesThresholds: Record<string, { min: number; max: number }> = {};
+      try {
+        const batchRes = await tankDetailApi.getActiveBatch(tankId);
+        const safeThresholds: any[] = batchRes.data?.data?.safeThresholds ?? [];
+        safeThresholds.forEach((t: any) => {
+          if (t.sensorTypeName) {
+            speciesThresholds[t.sensorTypeName] = { min: Number(t.minValue), max: Number(t.maxValue) };
+          }
+        });
+      } catch {
+        // silently fall back to API field values or defaults
+      }
+
       let tankInfo = { name: "Bể nuôi", farmName: "Hệ thống iRAS" };
       try {
         const tankRes = await tankDetailApi.getTankInfo(tankId);
@@ -109,14 +123,24 @@ export const tankDetailService = {
           const hasData = m.latestData !== null && m.latestData !== undefined;
           const val = hasData ? m.latestData?.latestAvg : null;
 
-          return {
+          // Priority: species batch thresholds > API field > sensor-type defaults
+        const specThr = speciesThresholds[m.sensorTypeName];
+        const defaultThr = getDefaultThresholdForService(m.sensorTypeName);
+        const minThreshold = specThr?.min ?? m.minThreshold ?? defaultThr.min;
+        const maxThreshold = specThr?.max ?? m.maxThreshold ?? defaultThr.max;
+
+        // Compute warning locally so badge always matches displayed thresholds
+        const numVal = val !== null && val !== undefined ? Number(val) : null;
+        const isWarning = numVal !== null && (numVal < minThreshold || numVal > maxThreshold);
+
+        return {
             id: m.sensorId,
             label: m.sensorTypeName,
-            value: val !== null && val !== undefined ? val.toFixed(1) : "0",
+            value: val !== null && val !== undefined ? val.toFixed(2) : "0.00",
             unit:
               m.unitOfMeasure ||
               (m.sensorTypeName?.includes("Nhiệt độ") ? "°C" : ""),
-            color: hasData && m.latestData?.hasWarning ? "#EF4444" : "#3B82F6",
+            color: isWarning ? "#EF4444" : "#3B82F6",
             icon: m.sensorTypeName?.includes("Nhiệt độ")
               ? "thermometer"
               : m.sensorTypeName?.includes("pH")
@@ -126,12 +150,10 @@ export const tankDetailService = {
               hasData && m.latestData?.recordedAt
                 ? `${new Date(m.latestData.recordedAt).getHours()}h`
                 : "N/A",
-            // Giá trị min/max đo được trong kỳ (dùng cho "Thấp nhất/Cao nhất hôm nay")
             latestMin: hasData ? (m.latestData?.latestMin ?? null) : null,
             latestMax: hasData ? (m.latestData?.latestMax ?? null) : null,
-            // Ngưỡng an toàn từ API, fallback sang default theo loại cảm biến
-            minThreshold: m.minThreshold ?? getDefaultThresholdForService(m.sensorTypeName).min,
-            maxThreshold: m.maxThreshold ?? getDefaultThresholdForService(m.sensorTypeName).max,
+            minThreshold,
+            maxThreshold,
           };
         }),
         initialChartData,
