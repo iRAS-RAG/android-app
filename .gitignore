@@ -24,3 +24,6 @@ metro-health-check*
 # debug
 npm-debug.*
 yarn-error.*
+
+.idea/
+android/

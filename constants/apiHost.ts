@@ -3,15 +3,15 @@ import { Platform } from "react-native";
 import * as Device from "expo-device";
 
 function getApiHost(): string {
-  // Android emulator: special alias to host machine
-  if (Platform.OS === "android" && !Device.isDevice) {
-    return "http://10.0.2.2:5027";
-  }
-
   // Override via .env (e.g. ngrok URL): EXPO_PUBLIC_API_HOST=https://xxxx.ngrok-free.app
   const envHost = process.env.EXPO_PUBLIC_API_HOST;
   if (envHost) {
     return envHost;
+  }
+
+  // Android emulator: special alias to host machine
+  if (Platform.OS === "android" && !Device.isDevice) {
+    return "http://10.0.2.2:5027";
   }
 
   // Physical device (dev): derive host IP from Metro bundler connection
