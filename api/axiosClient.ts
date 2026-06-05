@@ -1,21 +1,15 @@
 import axios, { InternalAxiosRequestConfig, AxiosResponse } from "axios";
 import * as SecureStore from "expo-secure-store";
 import { STORAGE_KEYS } from "../constants/storageKeys";
-import { Platform } from "react-native";
-import * as Device from "expo-device";
+import { API_HOST } from "../constants/apiHost";
 
 // ============================
 // BASE_URL
 // ============================
-const BASE_URL =
-  Platform.OS === "android" && !Device.isDevice
-    ? "http://10.0.2.2:5027/api"
-    : "http://192.168.1.10:5027/api";
+const BASE_URL = `${API_HOST}/api`;
 
 console.log("====================================");
-console.log("📱 Device Info:");
-console.log("➡️ Platform:", Platform.OS);
-console.log("➡️ Physical Device:", Device.isDevice);
+console.log("📱 API_HOST:", API_HOST);
 console.log("➡️ Using BASE_URL:", BASE_URL);
 console.log("====================================\n");
 
@@ -27,6 +21,7 @@ const axiosClient = axios.create({
   headers: {
     "Content-Type": "application/json",
     "X-Api-Key": "iRASRAG_9fB7E2cpqM4eVxLZK8hR3B0D6S1WJmE",
+    "ngrok-skip-browser-warning": "true",
   },
 });
 

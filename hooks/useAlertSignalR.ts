@@ -2,15 +2,9 @@ import { HubConnectionBuilder, type HubConnection } from "@microsoft/signalr";
 import { useEffect, useRef } from "react";
 import * as SecureStore from "expo-secure-store";
 import { STORAGE_KEYS } from "../constants/storageKeys";
-import { Platform } from "react-native";
-import * as Device from "expo-device";
+import { API_HOST } from "../constants/apiHost";
 
-const API_HOST =
-  Platform.OS === "android" && !Device.isDevice
-    ? "http://10.0.2.2:5027"
-    : "http://192.168.1.10:5027";
-
-const HUB_URL = `${API_HOST}/hubs/alerts`;
+const HUB_URL = `${API_HOST}/hubs/telemetry`;
 
 export interface AlertPush {
   alertId: string;
@@ -47,7 +41,10 @@ export function useAlertSignalR(handlers: Handlers) {
     };
 
     const conn = new HubConnectionBuilder()
-      .withUrl(HUB_URL, { accessTokenFactory: getToken })
+      .withUrl(HUB_URL, {
+        accessTokenFactory: getToken,
+        headers: { "ngrok-skip-browser-warning": "true" },
+      })
       .withAutomaticReconnect()
       .build();
 
