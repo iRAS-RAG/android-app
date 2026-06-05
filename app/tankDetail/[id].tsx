@@ -152,6 +152,7 @@ export default function TankDetailScreen() {
   const [chartLoading, setChartLoading] = useState(false);
   const chartScrollRef = useRef<ScrollView>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const metricsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Countdown
   const [countdown, setCountdown] = useState(60);
@@ -268,6 +269,7 @@ export default function TankDetailScreen() {
     () => () => {
       if (pollRef.current) clearInterval(pollRef.current);
       if (countdownRef.current) clearInterval(countdownRef.current);
+      if (metricsIntervalRef.current) clearInterval(metricsIntervalRef.current);
     },
     [],
   );
@@ -289,7 +291,14 @@ export default function TankDetailScreen() {
     }
   };
 
-  useEffect(() => { loadFullData(); }, [id]);
+  useEffect(() => {
+    loadFullData();
+    if (metricsIntervalRef.current) clearInterval(metricsIntervalRef.current);
+    metricsIntervalRef.current = setInterval(refreshMetrics, 30_000);
+    return () => {
+      if (metricsIntervalRef.current) clearInterval(metricsIntervalRef.current);
+    };
+  }, [id]);
 
   // ─── Carousel navigation ──────────────────────────────────────────────────
 
