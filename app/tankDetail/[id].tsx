@@ -344,17 +344,11 @@ export default function TankDetailScreen() {
   const minThreshold: number = (activeSensor?.minThreshold ?? null) ?? defaultThr.min;
   const maxThreshold: number = (activeSensor?.maxThreshold ?? null) ?? defaultThr.max;
 
-  // Sensor-type absolute domain (hardcoded; will be replaced by API values later)
   const sensorTypeDomain: { min: number; max: number } | null = (() => {
     if (!activeSensor) return null;
-    const lower = activeSensor.label?.toLowerCase() || "";
-    if (lower.includes("nhiệt độ") || lower.includes("temp")) return { min: 0, max: 50 };
-    if (lower.includes("ph")) return { min: 0, max: 14 };
-    if (lower.includes("tds")) return { min: 0, max: 1000 };
-    if (lower.includes("oxy") || lower.includes("do")) return { min: 0, max: 20 };
-    if (lower.includes("ammonia") || lower.includes("nh3")) return { min: 0, max: 10 };
-    if (lower.includes("lưu lượng")) return { min: 0, max: 200 };
-    if (lower.includes("mực nước")) return { min: 0, max: 500 };
+    const min = activeSensor.minPossibleValue;
+    const max = activeSensor.maxPossibleValue;
+    if (min != null && max != null && max > min) return { min, max };
     return null;
   })();
 
