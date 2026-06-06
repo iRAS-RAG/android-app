@@ -4,7 +4,7 @@ import * as SecureStore from "expo-secure-store";
 import { STORAGE_KEYS } from "../constants/storageKeys";
 import { API_HOST } from "../constants/apiHost";
 
-const HUB_URL = `${API_HOST}/hubs/telemetry`;
+const HUB_URL = `${API_HOST}/hubs/alerts`;
 
 export interface AlertPush {
   alertId: string;
@@ -19,6 +19,7 @@ export interface AlertPush {
 interface Handlers {
   onReceiveAlert?: (push: AlertPush) => void;
   onAlertCreated?: (notification: { alertId: string; tankId: string }) => void;
+  onAlertStatusChanged?: (notification: { alertId: string; tankId: string; status: string }) => void;
 }
 
 export function useAlertSignalR(handlers: Handlers) {
@@ -54,6 +55,10 @@ export function useAlertSignalR(handlers: Handlers) {
 
     conn.on("AlertCreated", (n: { alertId: string; tankId: string }) => {
       handlersRef.current.onAlertCreated?.(n);
+    });
+
+    conn.on("AlertStatusChanged", (n: { alertId: string; tankId: string; status: string }) => {
+      handlersRef.current.onAlertStatusChanged?.(n);
     });
 
     conn.start().catch((e) => {

@@ -15,17 +15,20 @@ const show = (
   type: ToastType,
   message: string,
   duration?: number,
+  onPress?: () => void,
 ) => {
-  _ref?.show({ type, message, duration });
+  _ref?.show({ type, message, duration, onPress });
 };
 
 export const toast = {
-  success: (message: string, duration?: number) =>
-    show("success", message, duration),
-  error: (message: string, duration?: number) =>
-    show("error", message, duration),
-  warning: (message: string, duration?: number) =>
-    show("warning", message, duration),
-  info: (message: string, duration?: number) =>
-    show("info", message, duration),
+  success: (message: string, duration?: number, onPress?: () => void) =>
+    show("success", message, duration, onPress),
+  error: (message: string, duration?: number, onPress?: () => void) =>
+    show("error", message, duration, onPress),
+  warning: (message: string, duration?: number, onPress?: () => void) =>
+    show("warning", message, duration, onPress),
+  info: (message: string, duration?: number, onPress?: () => void) =>
+    show("info", message, duration, onPress),
+  alert: (message: string, duration?: number, onPress?: () => void) =>
+    show("alert", message, duration, onPress),
 };

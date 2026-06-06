@@ -6,16 +6,17 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import { Animated, StyleSheet, Text, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
-export type ToastType = "success" | "error" | "warning" | "info";
+export type ToastType = "success" | "error" | "warning" | "info" | "alert";
 
 export interface ToastOptions {
   type: ToastType;
   message: string;
   duration?: number; // ms, mặc định 3000
+  onPress?: () => void;
 }
 
 export interface ToastRef {
@@ -24,7 +25,7 @@ export interface ToastRef {
 
 const CONFIG: Record<
   ToastType,
-  { bg: string; border: string; icon: string; iconColor: string }
+  { bg: string; border: string; icon: string; iconColor: string; textColor?: string }
 > = {
   success: {
     bg: "#F0FDF4",
@@ -50,6 +51,13 @@ const CONFIG: Record<
     icon: "information-circle",
     iconColor: "#2563EB",
   },
+  alert: {
+    bg: "#FFFFFF",
+    border: "#EF4444",
+    icon: "warning",
+    iconColor: "#EF4444",
+    textColor: "#111827",
+  },
 };
 
 const Toast = forwardRef<ToastRef>((_, ref) => {
@@ -57,6 +65,7 @@ const Toast = forwardRef<ToastRef>((_, ref) => {
   const [message, setMessage] = useState("");
   const [type, setType] = useState<ToastType>("info");
   const [visible, setVisible] = useState(false);
+  const [onPressHandler, setOnPressHandler] = useState<(() => void) | undefined>();
 
   const translateY = useRef(new Animated.Value(-120)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -84,6 +93,7 @@ const Toast = forwardRef<ToastRef>((_, ref) => {
 
       setMessage(opts.message);
       setType(opts.type);
+      setOnPressHandler(() => opts.onPress);
       setVisible(true);
 
       // Reset và animate vào
@@ -129,15 +139,29 @@ const Toast = forwardRef<ToastRef>((_, ref) => {
         },
       ]}
     >
-      <Ionicons
-        name={cfg.icon as any}
-        size={22}
-        color={cfg.iconColor}
-        style={styles.icon}
-      />
-      <Text style={[styles.message, { color: cfg.iconColor }]} numberOfLines={3}>
-        {message}
-      </Text>
+      <TouchableOpacity
+        style={styles.inner}
+        activeOpacity={onPressHandler ? 0.7 : 1}
+        onPress={() => {
+          if (onPressHandler) {
+            hide();
+            onPressHandler();
+          }
+        }}
+      >
+        <Ionicons
+          name={cfg.icon as any}
+          size={22}
+          color={cfg.iconColor}
+          style={styles.icon}
+        />
+        <Text style={[styles.message, { color: cfg.textColor ?? cfg.iconColor }]} numberOfLines={3}>
+          {message}
+        </Text>
+        {onPressHandler && (
+          <Ionicons name="chevron-forward" size={16} color={cfg.iconColor} />
+        )}
+      </TouchableOpacity>
     </Animated.View>
   );
 });
@@ -151,10 +175,6 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     zIndex: 9999,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
     borderRadius: 14,
     borderWidth: 1,
     shadowColor: "#000",
@@ -162,6 +182,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 8,
+  },
+  inner: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 14,
   },
   icon: {
     marginRight: 10,

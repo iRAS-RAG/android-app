@@ -9,6 +9,8 @@ interface SensorLatestData {
   measureType: string;
   minThreshold?: number | null;
   maxThreshold?: number | null;
+  minPossibleValue?: number | null;
+  maxPossibleValue?: number | null;
   latestData: {
     latestAvg: number;
     latestMin: number | null;
@@ -154,6 +156,8 @@ export const tankDetailService = {
             latestMax: hasData ? (m.latestData?.latestMax ?? null) : null,
             minThreshold,
             maxThreshold,
+            minPossibleValue: m.minPossibleValue ?? null,
+            maxPossibleValue: m.maxPossibleValue ?? null,
           };
         }),
         initialChartData,
